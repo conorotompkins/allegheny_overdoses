@@ -6,12 +6,14 @@ library(viridis)
 theme_set(theme_bw())
 
 df %>% 
+  mutate(year = as.factor(year)) -> df
+  
+df %>% 
   count(date) %>% 
   ggplot(aes(date, n)) +
   geom_col()
 
 df %>% 
-  mutate(year = as.factor(year)) %>% 
   count(year, yday) %>%
   ggplot(aes(yday, n, color = year, fill =  year)) +
   geom_smooth()
@@ -24,13 +26,11 @@ df %>%
 
 
 df %>% 
-  mutate(year = as.factor(year)) %>% 
   group_by(year, yday) %>% 
   summarize(n = n()) %>% 
   mutate(n_cumsum = cumsum(n)) -> df_cumsum
 
 df %>% 
-  mutate(year = as.factor(year)) %>% 
   group_by(year) %>% 
   summarize(yday = last(yday),
             date = last(date)) %>% 
