@@ -7,10 +7,40 @@ theme_set(theme_bw())
 
 df %>% 
   count(date) %>% 
+  ggplot(aes(date, n)) +
+  geom_col()
+
+df %>% 
+  mutate(year = as.factor(year)) %>% 
+  count(year, yday) %>%
+  ggplot(aes(yday, n, color = year, fill =  year)) +
+  geom_smooth()
+
+df %>% 
+  count(date) %>% 
   mutate(n_cumsum = cumsum(n)) %>% 
   ggplot(aes(date, n_cumsum)) +
-    geom_line()
+  geom_line()
 
+
+df %>% 
+  mutate(year = as.factor(year)) %>% 
+  group_by(year, yday) %>% 
+  summarize(n = n()) %>% 
+  mutate(n_cumsum = cumsum(n)) -> df_cumsum
+
+df %>% 
+  mutate(year = as.factor(year)) %>% 
+  group_by(year) %>% 
+  summarize(yday = last(yday),
+            date = last(date)) %>% 
+  left_join(df_cumsum) -> df_tag
+
+df_cumsum %>% 
+  ggplot(aes(x = yday, y = n_cumsum, color = year)) +
+    geom_line() +
+    geom_label(data = df_tag, aes(x = yday, y = n_cumsum, label = year))
+                   
 df %>% 
   mutate(od_heroin = str_detect(overdose_factors, "Heroin"),
          od_cocaine = str_detect(overdose_factors, "Cocaine"),
