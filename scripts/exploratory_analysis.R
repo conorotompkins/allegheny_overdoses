@@ -24,7 +24,6 @@ df %>%
   ggplot(aes(date, n_cumsum)) +
   geom_line()
 
-
 df %>% 
   group_by(year, yday) %>% 
   summarize(n = n()) %>% 
@@ -56,9 +55,9 @@ df %>%
 df_factors %>% 
   gather(od_factor, od_flag, starts_with("od_")) %>% 
   #gather(od_factor, od_flag, c(od_heroin, od_cocaine, od_fentanyl, od_alcohol)) %>% 
-  filter(od_flag) -> df_factors
+  filter(od_flag) -> df_factors_long
 
-df_factors %>% 
+df_factors_long %>% 
   group_by(od_factor, date) %>% 
   summarize(n = n()) %>% 
   group_by(od_factor) %>% 
@@ -82,3 +81,29 @@ df %>%
 
 #over time, what % of heroin ODs contained fentanyl
 #CJ - res
+
+df_factors %>% 
+  select(date, od_heroin) %>% 
+  filter(od_heroin) %>% 
+  count(date) %>% 
+  mutate(n_cumsum = cumsum(n)) %>% 
+  ggplot(aes(date, n_cumsum)) +
+  geom_line() +
+  labs(title = "Fatal overdoses involving heroin",
+       x = "",
+       y = "Cumulative sum")
+
+df_factors %>% 
+  select(date, od_heroin, od_fentanyl) %>% 
+  filter(od_heroin) %>% 
+  group_by(date) %>% 
+  summarize(percent_fentanyl = mean(od_fentanyl)) -> df_factors_heroin_fent 
+
+df_factors_heroin_fent %>% 
+  #filter(date >= "2017-01-01") %>% 
+  ggplot(aes(date, percent_fentanyl)) +
+  geom_point(alpha = .1) +
+  geom_smooth() +
+  labs(title = "Fatal heroin overdoses involving fentanyl",
+       x = "",
+       y = "% involving fentantyl")
