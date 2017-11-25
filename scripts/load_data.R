@@ -36,30 +36,45 @@ df %>%
   count(od_factor, sort = TRUE) -> top_od_factors
 
 
+
+paste5 <- function(..., sep = " ", collapse = NULL, na.rm = F) {
+  if (na.rm == F)
+    paste(..., sep = sep, collapse = collapse)
+  else
+    if (na.rm == T) {
+      paste.na <- function(x, sep) {
+        x <- gsub("^\\s+|\\s+$", "", x)
+        ret <- paste(na.omit(x), collapse = sep)
+        is.na(ret) <- ret == ""
+        return(ret)
+      }
+      df <- data.frame(..., stringsAsFactors = F)
+      ret <- apply(df, 1, FUN = function(x) paste.na(x, sep))
+      
+      if (is.null(collapse))
+        ret
+      else {
+        paste.na(ret, sep = collapse)
+      }
+    }
+}
+
+
 df %>% 
-  replace_na(list(combined_od1 = "NA", 
-                  combined_od2 = "NA",
-                  combined_od3 = "NA",
-                  combined_od4 = "NA",
-                  combined_od5 = "NA",
-                  combined_od6 = "NA",
-                  combined_od7 = "NA")) -> df
+  mutate(od_factors = paste5(combined_od1,
+                             combined_od2,
+                             combined_od3,
+                             combined_od4,
+                             combined_od5,
+                             combined_od6,
+                             combined_od7, sep = ", ", na.rm = TRUE)) -> df
 
 rm("data")
-
-df %>% 
-  mutate(overdose_factors = str_c(combined_od1, 
-                            combined_od2, 
-                            combined_od3, 
-                            combined_od4, 
-                            combined_od5, 
-                            combined_od6, 
-                            combined_od7, sep = ", ")) -> df
 
 df %>% 
   select(id, date, death_time, year, 
          yday, month, mday, wday, 
          manner_of_death, age, sex, race, 
-         case_dispo, incident_zip, decedent_zip, overdose_factors, 
+         case_dispo, incident_zip, decedent_zip, od_factors, 
          combined_od1, combined_od2, combined_od3, combined_od4, 
          combined_od5, combined_od6, combined_od7) -> df
