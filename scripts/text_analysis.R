@@ -3,6 +3,7 @@ library(tidytext)
 library(widyr)
 library(ggraph)
 library(igraph)
+library(viridis)
 
 source("scripts/load_data.R")
 theme_set(theme_bw())
@@ -23,7 +24,7 @@ df_word_pairs %>%
   filter(item1 == "heroin")
 
 df_text %>% 
-  group_by(word) %>%
+  #group_by(word) %>%
   filter(n() >= 100) %>%
   pairwise_cor(word, id, sort = TRUE) -> df_word_cors
 
@@ -46,11 +47,13 @@ df_word_cors %>%
 set.seed(2016)
 
 df_word_cors %>%
-  filter(correlation > .01) %>%
+  filter(abs(correlation) > .1) %>%
   graph_from_data_frame() %>%
   ggraph(layout = "fr") +
-  geom_edge_link(aes(edge_alpha = correlation), show.legend = FALSE) +
+  geom_edge_link(aes(edge_alpha = abs(correlation), color = correlation), show.legend = TRUE) +
   geom_node_point(color = "lightblue", size = 5) +
-  geom_node_text(aes(label = name), repel = TRUE) +
-  theme_void()
+  geom_node_label(aes(label = name), repel = FALSE) +
+  scale_edge_alpha_continuous("Correlation", range = c(.5, 1)) +
+  scale_edge_color_continuous(low = "blue", high = "red") +
+  theme_graph()
 
