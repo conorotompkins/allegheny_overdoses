@@ -36,7 +36,7 @@ df %>%
   count(od_factor, sort = TRUE) -> top_od_factors
 
 
-
+#function from https://stackoverflow.com/questions/13673894/suppress-nas-in-paste/31508774#31508774
 paste5 <- function(..., sep = " ", collapse = NULL, na.rm = F) {
   if (na.rm == F)
     paste(..., sep = sep, collapse = collapse)
