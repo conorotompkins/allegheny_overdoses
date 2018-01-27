@@ -2,16 +2,14 @@ source("scripts/load_data.R")
 
 library(scales)
 library(viridis)
+library(ggrepel)
 
 theme_set(theme_bw())
+
 
 df %>% 
   mutate(year = as.factor(year)) -> df
   
-df %>% 
-  count(date) %>% 
-  ggplot(aes(date, n)) +
-  geom_col()
 
 #zip code
 #df %>% 
@@ -23,6 +21,7 @@ df %>%
   count(year, yday) %>%
   ggplot(aes(yday, n, color = year, fill =  year)) +
   geom_smooth(se = FALSE) +
+  #scale_y_continuous(limits = c(0, 3)) +
   labs(y = "Fatal Overdoses",
        x = "Day of year")
 
@@ -32,6 +31,40 @@ df %>%
   ggplot(aes(date, n_cumsum)) +
   geom_line(size = 2) +
   labs(y = "Cumulative Sum of Fatal Overdoses")
+
+top_zips <- df %>% 
+  count(incident_zip, sort = TRUE) %>% 
+  top_n(5) %>% 
+  select(incident_zip) %>% 
+  unlist()
+top_zips
+
+top_zips_df <- df %>% 
+  arrange(incident_zip, date) %>% 
+  count(incident_zip, date) %>% 
+  mutate(is_top_zip = incident_zip %in% top_zips) %>% 
+  group_by(incident_zip) %>% 
+  mutate(n_cumsum = cumsum(n))
+
+top_zips_df_labels <- df %>% 
+  filter(incident_zip %in% top_zips) %>% 
+  group_by(incident_zip) %>% 
+  summarize(last_date = last(date),
+            id = unique(incident_zip),
+            total = n())
+
+top_zips_df_labels
+
+ggplot(top_zips_df, aes(x = date, y = n_cumsum, color = incident_zip)) +
+  geom_line(aes(color = NULL, group = incident_zip), size = 1, alpha = .1) +
+  geom_line(data = filter(top_zips_df, incident_zip %in% top_zips), aes(color = incident_zip), size = 2) +
+  geom_label_repel(data = top_zips_df_labels, aes(x = last_date, y = total,  label = id)) +
+  labs(y = "Cumulative Sum of Fatal Overdoses") +
+  scale_alpha_manual(values = c(.1, 1), guide = FALSE) +
+  scale_color_discrete(guide = FALSE) +
+  scale_y_continuous(expand = c(.01, .1)) +
+  labs(x = NULL)
+
 
 
 df %>% 
