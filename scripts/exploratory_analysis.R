@@ -80,8 +80,9 @@ df %>%
 
 df_cumsum %>% 
   ggplot(aes(x = yday, y = n_cumsum, color = year)) +
-    geom_line(size = 2) +
-    geom_label(data = df_tag, aes(x = yday, y = n_cumsum, label = year, size = 3)) +
+  geom_line(size = 2) +
+  geom_label(data = df_tag, aes(x = yday, y = n_cumsum, label = year, size = 3)) +
+  scale_size_continuous(guide = FALSE) +
   labs(x = "Day of year",
        y = "Cumulative sum of fatal overdoses")
                    
@@ -108,10 +109,17 @@ df_factors_long %>%
   group_by(od_factor) %>% 
   mutate(od_cumsum = cumsum(n)) -> df_factors_cumsum
 
-df_factors_cumsum %>% 
-  ggplot(aes(date, od_cumsum, color = od_factor)) +
+df_factors_long %>% 
+  group_by(od_factor) %>% 
+  summarize(last_date = last(date),
+            total = n()) -> df_factors_cumsum_label
+
+ggplot(data = df_factors_cumsum, aes(x = date, y = od_cumsum, color = od_factor)) +
   geom_line(size = 1.5) +
-  labs(y = "Cumulative sum of fatal overdoses by factor")
+  geom_label_repel(data = df_factors_cumsum_label, aes(x = last_date, y = total, label = str_replace(od_factor, "od_", ""))) +
+  scale_color_discrete(guide = FALSE) +
+  scale_y_continuous(expand = c(.01, .1)) +
+  labs(y = "Cumulative sum of fatal overdoses by overdose factor")
 
 #2017ncumsum by drug
 
@@ -122,18 +130,39 @@ df_factors_long %>%
   group_by(od_factor) %>% 
   mutate(od_cumsum = cumsum(n)) -> df_factors_cumsum_2017
 
+df_factors_long %>% 
+  filter(date >= "2017-01-01") %>% 
+  group_by(od_factor) %>% 
+  summarize(last_date = last(date),
+            total = n()) -> df_factors_cumsum_label_2017
+
 df_factors_cumsum_2017 %>% 
   ggplot(aes(date, od_cumsum, color = od_factor)) +
   geom_line(size = 2) +
-  labs(title = "2017",
-       y = "Cumulative sum of fatal overdoses by factor")
+  geom_label_repel(data = df_factors_cumsum_label_2017, aes(x = last_date, y = total, label = str_replace(od_factor, "od_", ""))) +
+  scale_color_discrete(guide = FALSE) +
+  scale_y_continuous(expand = c(.01, .1)) +
+  labs(y = "Cumulative sum of fatal overdoses by overdose factor")
+
+last_date <- last(df$date)
+
 
 df %>% 
   #filter(date >= "2016-01-01") %>% 
-  count(year, month, mday) %>%
+  group_by(year, month, mday) %>%
+  summarize(n = n()) %>% 
+  ungroup() %>% 
   complete(year, month, mday = 1:31) %>% 
-  replace_na(list(n = 0)) %>% 
-  #filter(year %in% c("2016", "2017")) %>% 
+  replace_na(list(n = 0)) -> df_tile
+
+#hack the data so NA and 0s aren't combined
+df_tile$n[df_tile$year == 2017 & df_tile$month == "Oct" & df_tile$mday >24] <- NA
+df_tile$n[df_tile$year == 2017 & df_tile$month %in% c("Nov", "Dec")] <- NA
+#September, April, June, and November have 30 days
+months_30 <- c("Sep", "Apr", "Jun", "Nov")
+df_tile$n[df_tile$month %in% months_30 & df_tile$mday == 31] <- NA
+
+df_tile %>% 
   ggplot(aes(mday, month, fill = n)) +
   geom_tile() +
   facet_grid(year ~.) +
@@ -141,7 +170,9 @@ df %>%
   coord_equal() +
   scale_x_continuous(expand = c(0,0)) +
   scale_y_discrete(expand = c(0,0),
-                   limits = rev(levels(df$month)))
+                   limits = rev(levels(df$month))) +
+  labs(y = NULL,
+       x = "Day of month")
 
 
 #over time, what % of heroin ODs contained fentanyl
@@ -151,9 +182,11 @@ df_factors %>%
   select(date, od_heroin) %>% 
   filter(od_heroin) %>% 
   count(date) %>% 
-  mutate(n_cumsum = cumsum(n)) %>% 
-  ggplot(aes(date, n_cumsum)) +
+  mutate(n_cumsum = cumsum(n),
+         tag = "Heroin") %>% 
+  ggplot(aes(x = date, y = n_cumsum)) +
   geom_line() +
+  #geom_label_repel(aes(x = last(date), label = tag)) + not working
   labs(title = "Fatal overdoses involving heroin",
        x = "",
        y = "Cumulative sum of fatal overdoses")
@@ -169,6 +202,7 @@ df_factors_heroin_fent %>%
   ggplot(aes(date, percent_fentanyl)) +
   geom_point(alpha = .1) +
   geom_smooth() +
+  scale_y_continuous(labels = scales::percent) +
   labs(title = "Fatal heroin overdoses involving fentanyl",
        x = "",
        y = "% involving fentantyl")
