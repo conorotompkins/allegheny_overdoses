@@ -114,6 +114,7 @@ ggplot(data = df_year_cumsum, aes(x = yday, y = n_cumsum, color = year)) +
   labs(x = "Day of year",
        y = "Cumulative sum of fatal overdoses")
 
+#check to be sure this is still the top 10
 #munge od_factor data
 df %>% 
   mutate(od_heroin = str_detect(od_factors, "Heroin"),
@@ -218,7 +219,7 @@ df_factors %>%
   mutate(n_cumsum = cumsum(n),
          tag = "Heroin") %>% 
   ggplot(aes(x = date, y = n_cumsum)) +
-  geom_line() +
+  geom_line(size = 2) +
   #geom_label_repel(aes(x = last(date), label = tag)) + not working
   labs(title = "Fatal overdoses involving heroin",
        x = "",
