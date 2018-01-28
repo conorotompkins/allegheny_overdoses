@@ -6,29 +6,33 @@ library(ggrepel)
 
 theme_set(theme_bw())
 
-
 df %>% 
   mutate(year = as.factor(year)) -> df
   
-
 #zip code
 #df %>% 
 #  count(incident_zip, sort = TRUE) %>% 
 #  ggplot(aes(incident_zip, n)) + 
 #  geom_col()
+df %>%
+  count(incident_zip, sort = TRUE)
 
+
+
+#old, delete
+#df_year %>%
+#  ggplot(aes(yday, n, color = year, fill =  year)) +
+#  geom_smooth(se = FALSE) +
+#  #scale_y_continuous(limits = c(0, 3)) +
+#  labs(y = "Fatal Overdoses",
+#       x = "Day of year")
+
+#time series EDA
+
+#year graph with labels
 df %>% 
   count(year, yday) -> df_year
 
-df_year %>%
-  ggplot(aes(yday, n, color = year, fill =  year)) +
-  geom_smooth(se = FALSE) +
-  #scale_y_continuous(limits = c(0, 3)) +
-  labs(y = "Fatal Overdoses",
-       x = "Day of year")
-
-
-#year graph with labels
 df %>% 
   count(year, yday) %>% 
   group_by(year) %>% 
@@ -46,13 +50,7 @@ ggplot(data = df_year, aes(x = yday, y = n, color = year)) +
        y = "Number of overdoses")
 
 
-
-mutate(xgf_loess = predict(loess(xgf60 ~ game_number)),
-       xga_loess = predict(loess(xga60 ~ game_number)))
-
-
-####################
-
+#cumulative sum
 df %>% 
   count(date) %>% 
   mutate(n_cumsum = cumsum(n)) %>% 
@@ -60,6 +58,8 @@ df %>%
   geom_line(size = 2) +
   labs(y = "Cumulative Sum of Fatal Overdoses")
 
+
+#fatal overdoses by zip code
 top_zips <- df %>% 
   count(incident_zip, sort = TRUE) %>% 
   top_n(5) %>% 
@@ -67,53 +67,54 @@ top_zips <- df %>%
   unlist()
 top_zips
 
-top_zips_df <- df %>% 
+zips_df <- df %>% 
   arrange(incident_zip, date) %>% 
   count(incident_zip, date) %>% 
-  mutate(is_top_zip = incident_zip %in% top_zips) %>% 
+  #mutate(is_top_zip = incident_zip %in% top_zips) %>% 
   group_by(incident_zip) %>% 
   mutate(n_cumsum = cumsum(n))
+
+top_zips_df <- zips_df %>% 
+  filter(incident_zip %in% top_zips)
 
 top_zips_df_labels <- df %>% 
   filter(incident_zip %in% top_zips) %>% 
   group_by(incident_zip) %>% 
   summarize(last_date = last(date),
-            id = unique(incident_zip),
+            tag = unique(incident_zip),
             total = n())
 
-top_zips_df_labels
-
-ggplot(top_zips_df, aes(x = date, y = n_cumsum, color = incident_zip)) +
-  geom_line(aes(color = NULL, group = incident_zip), size = 1, alpha = .1) +
-  geom_line(data = filter(top_zips_df, incident_zip %in% top_zips), aes(color = incident_zip), size = 2) +
-  geom_label_repel(data = top_zips_df_labels, aes(x = last_date, y = total,  label = id)) +
+ggplot(zips_df, aes(x = date, y = n_cumsum, group = incident_zip)) +
+  geom_line(size = 1, alpha = .1) +
+  geom_line(data = top_zips_df, aes(x = date, y = n_cumsum, color = incident_zip), size = 2) +
+  geom_label_repel(data = top_zips_df_labels, aes(x = last_date, y = total, label = tag, color = incident_zip)) +
   labs(y = "Cumulative Sum of Fatal Overdoses") +
   scale_alpha_manual(values = c(.1, 1), guide = FALSE) +
   scale_color_discrete(guide = FALSE) +
   scale_y_continuous(expand = c(.01, .1)) +
-  labs(x = NULL)
+  labs(title = "Fatal overdoses per zip code, cumulative",
+       x = NULL)
 
-
-
+#fatal overdoses by year
 df %>% 
   group_by(year, yday) %>% 
   summarize(n = n()) %>% 
-  mutate(n_cumsum = cumsum(n)) -> df_cumsum
+  mutate(n_cumsum = cumsum(n)) -> df_year_cumsum
 
 df %>% 
   group_by(year) %>% 
-  summarize(yday = last(yday),
-            date = last(date)) %>% 
-  left_join(df_cumsum) -> df_tag
+  summarize(last_yday = last(yday),
+            total = n()) -> df_year_tag
 
-df_cumsum %>% 
-  ggplot(aes(x = yday, y = n_cumsum, color = year)) +
+ggplot(data = df_year_cumsum, aes(x = yday, y = n_cumsum, color = year)) +
   geom_line(size = 2) +
-  geom_label(data = df_tag, aes(x = yday, y = n_cumsum, label = year, size = 3)) +
+  geom_label_repel(data = df_year_tag, aes(x = last_yday, y = total, label = year, color = year, group = year)) +
   scale_size_continuous(guide = FALSE) +
+  scale_color_discrete(guide = FALSE) +
   labs(x = "Day of year",
        y = "Cumulative sum of fatal overdoses")
-                   
+
+#munge od_factor data
 df %>% 
   mutate(od_heroin = str_detect(od_factors, "Heroin"),
          od_cocaine = str_detect(od_factors, "Cocaine"),
@@ -131,23 +132,27 @@ df_factors %>%
   #gather(od_factor, od_flag, c(od_heroin, od_cocaine, od_fentanyl, od_alcohol)) %>% 
   filter(od_flag == TRUE) -> df_factors_long
 
+#create od_factor df
 df_factors_long %>% 
   group_by(od_factor, date) %>% 
   summarize(n = n()) %>% 
   group_by(od_factor) %>% 
   mutate(od_cumsum = cumsum(n)) -> df_factors_cumsum
 
+#create label df for od_factors
 df_factors_long %>% 
   group_by(od_factor) %>% 
   summarize(last_date = last(date),
             total = n()) -> df_factors_cumsum_label
 
+#plot cumulative od_factor
 ggplot(data = df_factors_cumsum, aes(x = date, y = od_cumsum, color = od_factor)) +
   geom_line(size = 1.5) +
-  geom_label_repel(data = df_factors_cumsum_label, aes(x = last_date, y = total, label = str_replace(od_factor, "od_", ""))) +
+  geom_label_repel(data = df_factors_cumsum_label, aes(x = last_date, y = total, label = str_replace(od_factor, "od_", ""), group = od_factor)) +
   scale_color_discrete(guide = FALSE) +
   scale_y_continuous(expand = c(.01, .1)) +
-  labs(y = "Cumulative sum of fatal overdoses by overdose factor")
+  labs(y = "Cumulative sum of fatal overdoses by overdose factor",
+       caption = "Not exclusive")
 
 #2017ncumsum by drug
 
@@ -167,14 +172,14 @@ df_factors_long %>%
 df_factors_cumsum_2017 %>% 
   ggplot(aes(date, od_cumsum, color = od_factor)) +
   geom_line(size = 2) +
-  geom_label_repel(data = df_factors_cumsum_label_2017, aes(x = last_date, y = total, label = str_replace(od_factor, "od_", ""))) +
+  geom_label_repel(data = df_factors_cumsum_label_2017, aes(x = last_date, y = total, label = str_replace(od_factor, "od_", ""), group = od_factor)) +
   scale_color_discrete(guide = FALSE) +
   scale_y_continuous(expand = c(.01, .1)) +
   labs(y = "Cumulative sum of fatal overdoses by overdose factor")
 
-last_date <- last(df$date)
 
 
+#create tile df
 df %>% 
   #filter(date >= "2016-01-01") %>% 
   group_by(year, month, mday) %>%
