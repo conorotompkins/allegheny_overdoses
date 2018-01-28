@@ -18,12 +18,40 @@ df %>%
 #  geom_col()
 
 df %>% 
-  count(year, yday) %>%
+  count(year, yday) -> df_year
+
+df_year %>%
   ggplot(aes(yday, n, color = year, fill =  year)) +
   geom_smooth(se = FALSE) +
   #scale_y_continuous(limits = c(0, 3)) +
   labs(y = "Fatal Overdoses",
        x = "Day of year")
+
+
+#year graph with labels
+df %>% 
+  count(year, yday) %>% 
+  group_by(year) %>% 
+  mutate(smooth = predict(loess(n ~ yday))) %>% 
+  summarize(last_yday = last(yday),
+            last_smooth = last(smooth),
+            tag = unique(year)) -> df_year_label
+
+ggplot(data = df_year, aes(x = yday, y = n, color = year)) +
+  geom_smooth(se = FALSE) +
+  geom_label_repel(data = df_year_label, aes(x = last_yday, y = last_smooth, label = year)) +
+  scale_color_discrete(guide = FALSE) +
+  labs(title = "Fatal overdoses in Allegheny County",
+       x = "Day of the year",
+       y = "Number of overdoses")
+
+
+
+mutate(xgf_loess = predict(loess(xgf60 ~ game_number)),
+       xga_loess = predict(loess(xga60 ~ game_number)))
+
+
+####################
 
 df %>% 
   count(date) %>% 
