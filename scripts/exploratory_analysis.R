@@ -144,7 +144,7 @@ df %>%
          od_morphine = str_detect(od_factors, "Morphine"),
          od_methadone = str_detect(od_factors, "Methadone"),
          od_hydrocodone = str_detect(od_factors, "Hydrocodone"),
-         od_hydrocodone = str_detect(od_factors, "Diazepam")) -> df_factors
+         od_diazepam = str_detect(od_factors, "Diazepam")) -> df_factors
 
 
 df_factors %>% 
