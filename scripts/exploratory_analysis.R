@@ -55,6 +55,7 @@ df %>%
   count(date) %>% 
   mutate(n_cumsum = cumsum(n)) %>% 
   ggplot(aes(date, n_cumsum)) +
+  geom_hline(yintercept = 0) +
   geom_line(size = 2) +
   labs(y = "Cumulative Sum of Fatal Overdoses")
 
@@ -114,8 +115,25 @@ ggplot(data = df_year_cumsum, aes(x = yday, y = n_cumsum, color = year)) +
   labs(x = "Day of year",
        y = "Cumulative sum of fatal overdoses")
 
-#check to be sure this is still the top 10
-#munge od_factor data
+#identify top 10 OD factors
+df %>%
+  select(id, date, starts_with("od_")) %>% 
+  gather(od_factor, od_flag, starts_with("od_"))
+
+
+df_factor_total <- tibble(factor = c(df$combined_od1,
+                 df$combined_od2,
+                 df$combined_od3,
+                 df$combined_od4,
+                 df$combined_od5,
+                 df$combined_od6,
+                 df$combined_od7))
+
+df_factor_total <- df_factor_total %>% 
+  filter(!is.na(factor)) %>% 
+  count(factor, sort = TRUE)
+
+
 df %>% 
   mutate(od_heroin = str_detect(od_factors, "Heroin"),
          od_cocaine = str_detect(od_factors, "Cocaine"),
@@ -125,7 +143,8 @@ df %>%
          od_oxycodone = str_detect(od_factors, "Oxycodone"),
          od_morphine = str_detect(od_factors, "Morphine"),
          od_methadone = str_detect(od_factors, "Methadone"),
-         od_hydrocodone = str_detect(od_factors, "Hydrocodone")) -> df_factors
+         od_hydrocodone = str_detect(od_factors, "Hydrocodone"),
+         od_hydrocodone = str_detect(od_factors, "Diazepam")) -> df_factors
 
 
 df_factors %>% 
