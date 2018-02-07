@@ -44,6 +44,7 @@ df %>%
 ggplot(data = df_year, aes(x = yday, y = n, color = year)) +
   geom_smooth(se = FALSE) +
   geom_label_repel(data = df_year_label, aes(x = last_yday, y = last_smooth, label = year)) +
+  geom_point(data = df_year_label, aes(x = last_yday, y = last_smooth), size = 3) +
   scale_color_discrete(guide = FALSE) +
   labs(title = "Fatal overdoses in Allegheny County",
        x = "Day of the year",
@@ -89,6 +90,7 @@ ggplot(zips_df, aes(x = date, y = n_cumsum, group = incident_zip)) +
   geom_line(size = 1, alpha = .1) +
   geom_line(data = top_zips_df, aes(x = date, y = n_cumsum, color = incident_zip), size = 2) +
   geom_label_repel(data = top_zips_df_labels, aes(x = last_date, y = total, label = tag, color = incident_zip)) +
+  geom_point(data = top_zips_df_labels, aes(x = last_date, y = total, color = incident_zip), size = 3) +
   labs(y = "Cumulative Sum of Fatal Overdoses") +
   scale_alpha_manual(values = c(.1, 1), guide = FALSE) +
   scale_color_discrete(guide = FALSE) +
@@ -110,6 +112,7 @@ df %>%
 ggplot(data = df_year_cumsum, aes(x = yday, y = n_cumsum, color = year)) +
   geom_line(size = 2) +
   geom_label_repel(data = df_year_tag, aes(x = last_yday, y = total, label = year, color = year, group = year)) +
+  geom_point(data = df_year_tag, aes(x = last_yday, y = total, color = year, group = year), size = 3) +
   scale_size_continuous(guide = FALSE) +
   scale_color_discrete(guide = FALSE) +
   labs(x = "Day of year",
@@ -169,6 +172,7 @@ df_factors_long %>%
 ggplot(data = df_factors_cumsum, aes(x = date, y = od_cumsum, color = od_factor)) +
   geom_line(size = 1.5) +
   geom_label_repel(data = df_factors_cumsum_label, aes(x = last_date, y = total, label = str_replace(od_factor, "od_", ""), group = od_factor)) +
+  geom_point(data = df_factors_cumsum_label, aes(x = last_date, y = total, group = od_factor, color = od_factor), size = 3) +
   scale_color_discrete(guide = FALSE) +
   scale_y_continuous(expand = c(.01, .1)) +
   labs(y = "Cumulative sum of fatal overdoses by overdose factor",
@@ -193,11 +197,10 @@ df_factors_cumsum_2017 %>%
   ggplot(aes(date, od_cumsum, color = od_factor)) +
   geom_line(size = 2) +
   geom_label_repel(data = df_factors_cumsum_label_2017, aes(x = last_date, y = total, label = str_replace(od_factor, "od_", ""), group = od_factor)) +
+  geom_point(data = df_factors_cumsum_label_2017, aes(x = last_date, y = total, group = od_factor, color = od_factor), size = 3) +
   scale_color_discrete(guide = FALSE) +
   scale_y_continuous(expand = c(.01, .1)) +
   labs(y = "Cumulative sum of fatal overdoses by overdose factor")
-
-
 
 #create tile df
 df %>% 
