@@ -25,7 +25,8 @@ data %>%
          yday = yday(date),
          month = month(date, label = TRUE),
          mday = mday(date),
-         wday = wday(date)) %>% 
+         wday = wday(date),
+         incident_zip = as.character(incident_zip)) %>% 
   select(-c(case_year, death_date)) %>% 
   arrange(date, death_time) %>% 
   select(id, date, death_time, year, yday, month, mday, wday, everything()) -> df
