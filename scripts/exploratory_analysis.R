@@ -14,10 +14,32 @@ df %>%
 #  count(incident_zip, sort = TRUE) %>% 
 #  ggplot(aes(incident_zip, n)) + 
 #  geom_col()
+
+
+#identify cutoff date for 2017
+#cumulative sum
+df %>% 
+  filter(year == 2017) %>% 
+  count(date) %>% 
+  mutate(n_cumsum = cumsum(n)) %>% 
+  ggplot(aes(date, n_cumsum)) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = ymd("2017-09-01")) +
+  geom_line(size = 2) +
+  labs(y = "Cumulative Sum of Fatal Overdoses")
+
+df %>% 
+  filter(date <= "2017-09-01") %>% 
+  count(date) %>% 
+  mutate(n_cumsum = cumsum(n)) %>% 
+  ggplot(aes(date, n_cumsum)) +
+  geom_hline(yintercept = 0) +
+  geom_line(size = 2) +
+  labs(y = "Cumulative Sum of Fatal Overdoses")
+
+
 df %>%
   count(incident_zip, sort = TRUE)
-
-
 
 #old, delete
 #df_year %>%
@@ -28,6 +50,9 @@ df %>%
 #       x = "Day of year")
 
 #time series EDA
+
+df %>% 
+  filter(date <= "2017-09-01") -> df
 
 #year graph with labels
 df %>% 
@@ -212,8 +237,8 @@ df %>%
   replace_na(list(n = 0)) -> df_tile
 
 #hack the data so NA and 0s aren't combined
-df_tile$n[df_tile$year == 2017 & df_tile$month == "Oct" & df_tile$mday >24] <- NA
-df_tile$n[df_tile$year == 2017 & df_tile$month %in% c("Nov", "Dec")] <- NA
+df_tile$n[df_tile$year == 2017 & df_tile$month == "Sep" & df_tile$mday >= 1] <- NA
+df_tile$n[df_tile$year == 2017 & df_tile$month %in% c("Oct", "Nov", "Dec")] <- NA
 #September, April, June, and November have 30 days
 months_30 <- c("Sep", "Apr", "Jun", "Nov")
 df_tile$n[df_tile$month %in% months_30 & df_tile$mday == 31] <- NA
@@ -229,7 +254,6 @@ df_tile %>%
                    limits = rev(levels(df$month))) +
   labs(y = NULL,
        x = "Day of month")
-
 
 #over time, what % of heroin ODs contained fentanyl
 #CJ - res
