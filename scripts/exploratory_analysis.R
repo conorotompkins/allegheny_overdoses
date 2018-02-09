@@ -4,7 +4,10 @@ library(scales)
 library(viridis)
 library(ggrepel)
 
-theme_set(theme_bw())
+theme_ct <- function () { 
+  theme_bw(base_size=18)
+}
+theme_set(theme_ct())
 
 df %>% 
   mutate(year = as.factor(year)) -> df
