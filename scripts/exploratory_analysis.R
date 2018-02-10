@@ -3,6 +3,7 @@ source("scripts/load_data.R")
 library(scales)
 library(viridis)
 library(ggrepel)
+library(scales)
 
 theme_ct <- function () { 
   theme_bw(base_size=18)
@@ -38,6 +39,7 @@ df %>%
   ggplot(aes(date, n_cumsum)) +
   geom_hline(yintercept = 0) +
   geom_line(size = 2) +
+  scale_y_continuous(label=comma) +
   labs(y = "Cumulative Sum of Fatal Overdoses")
 
 
@@ -86,6 +88,7 @@ df %>%
   ggplot(aes(date, n_cumsum)) +
   geom_hline(yintercept = 0) +
   geom_line(size = 2) +
+  scale_y_continuous(label=comma) +
   labs(y = "Cumulative Sum of Fatal Overdoses")
 
 
@@ -202,7 +205,7 @@ ggplot(data = df_factors_cumsum, aes(x = date, y = od_cumsum, color = od_factor)
   geom_label_repel(data = df_factors_cumsum_label, aes(x = last_date, y = total, label = str_replace(od_factor, "od_", ""), group = od_factor)) +
   geom_point(data = df_factors_cumsum_label, aes(x = last_date, y = total, group = od_factor, color = od_factor), size = 3) +
   scale_color_discrete(guide = FALSE) +
-  scale_y_continuous(expand = c(.01, .1)) +
+  scale_y_continuous(expand = c(.01, .1), label = comma) +
   labs(y = "Cumulative sum of fatal overdoses by overdose factor",
        caption = "Not exclusive")
 
@@ -232,7 +235,6 @@ df_factors_cumsum_2017 %>%
 
 #create tile df
 df %>% 
-  #filter(date >= "2016-01-01") %>% 
   group_by(year, month, mday) %>%
   summarize(n = n()) %>% 
   ungroup() %>% 
@@ -249,14 +251,14 @@ df_tile$n[df_tile$month %in% months_30 & df_tile$mday == 31] <- NA
 df_tile %>% 
   ggplot(aes(mday, month, fill = n)) +
   geom_tile() +
-  facet_grid(year ~.) +
+  facet_wrap(~year, ncol = 2) +
   scale_fill_viridis("Number of fatal overdoses") +
   coord_equal() +
   scale_x_continuous(expand = c(0,0)) +
   scale_y_discrete(expand = c(0,0),
                    limits = rev(levels(df$month))) +
   labs(y = NULL,
-       x = "Day of month")
+       x = "Day of the month")
 
 #over time, what % of heroin ODs contained fentanyl
 #CJ - res
@@ -269,7 +271,7 @@ df_factors %>%
          tag = "Heroin") %>% 
   ggplot(aes(x = date, y = n_cumsum)) +
   geom_line(size = 2) +
-  #geom_label_repel(aes(x = last(date), label = tag)) + not working
+  scale_y_continuous(label = comma) +
   labs(title = "Fatal overdoses involving heroin",
        x = "",
        y = "Cumulative sum of fatal overdoses")
