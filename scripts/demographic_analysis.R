@@ -1,3 +1,5 @@
+#Need to adjust for per capita (per 100,000)
+
 source("scripts/load_data.R")
 
 library(scales)
@@ -26,9 +28,9 @@ df_demo %>%
 
 df_demo %>% 
   filter(race %in% c("White", "Black")) %>% 
-  ggplot(aes(age)) +
-  geom_density(alpha = .75) +
-  facet_wrap(sex~race)
+  mutate(category = str_c(sex, race, sep = ", ")) %>% 
+  ggplot(aes(age, fill = category)) +
+  geom_density(alpha = .5)
 
 df_demo %>% 
   filter(race %in% c("White", "Black")) %>% 
@@ -41,10 +43,7 @@ df_demo %>%
   geom_line(size = 2) +
   scale_y_continuous(label = comma)
 
-
-
 #drug factor by category (sex, race)
-
 df %>% 
   filter(race %in% c("White", "Black")) %>% 
   mutate(od_heroin = str_detect(od_factors, "Heroin"),
@@ -62,7 +61,6 @@ df %>%
 df_factors %>%
   mutate(category = str_c(sex, race, sep = ", ")) %>% 
   gather(od_factor, od_flag, starts_with("od_"), -category) %>% 
-  #gather(od_factor, od_flag, c(od_heroin, od_cocaine, od_fentanyl, od_alcohol)) %>% 
   filter(od_flag == TRUE) -> df_factors_long
 
 #create od_factor df
