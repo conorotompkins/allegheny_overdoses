@@ -4,7 +4,7 @@ df
 
 df %>%
   select(id, incident_zip, starts_with("od_")) %>%
-  filter(!is.na(incident_zip)) %>% 
+  filter(!is.na(incident_zip), incident_zip != "1`513") %>% 
   gather(key = od_factor, value = od_flag, starts_with("od_")) %>%
   separate(od_flag, sep = ", ", into = str_c("od_", 1:8)) %>% 
   select(-od_factor) %>% 
@@ -15,6 +15,9 @@ df %>%
 df_long %>% 
   count(od_factor, sort = TRUE) %>% 
   top_n(10) -> top_od_factors
+
+df %>% 
+  count(incident_zip, sort = TRUE)
 
 df_long %>% 
   semi_join(top_od_factors) %>% 
@@ -38,7 +41,7 @@ df_long %>%
   filter(is.nan(od_factor))
 
 df_long %>% 
-  select(incident_zip, od_factor, od_factor_percentage) %>% 
+  select(incident_zip, od_factor, od_factor_percentage, incident_zip_total) %>% 
   spread(od_factor, od_factor_percentage) %>% 
   ungroup() -> df_long
 
