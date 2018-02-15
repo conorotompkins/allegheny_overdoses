@@ -1,3 +1,6 @@
+---
+output: github_document
+---
 # allegheny_overdoses
 A repo for analyzing fatal overdoses in Allegheny County
 
@@ -23,7 +26,6 @@ df %>%
   ggplot(aes(date, n_cumsum)) +
   geom_hline(yintercept = 0) +
   geom_line(size = 2) +
-  scale_y_continuous(label=comma) +
   labs(title = "Fatal overdoses in Allegheny County",
        subtitle = "Data from the WPRDC",
        y = "Cumulative sum",
