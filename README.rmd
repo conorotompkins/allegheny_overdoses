@@ -1,0 +1,32 @@
+# allegheny_overdoses
+A repo for analyzing fatal overdoses in Allegheny County
+
+##Basic exploratory analysis
+
+```{r setup, message=FALSE, warning=FALSE, paged.print=FALSE}
+library(tidyverse)
+library(scales)
+library(viridis)
+library(ggrepel)
+library(scales)
+
+theme_set(theme_bw(base_size = 18))
+
+source("scripts/load_data.R")
+```
+
+```{r cumulative_plot, fig.height=12, fig.width=14, message=FALSE, warning=FALSE, paged.print=FALSE}
+df %>% 
+  filter(date <= "2017-09-01") %>% 
+  count(date) %>% 
+  mutate(n_cumsum = cumsum(n)) %>% 
+  ggplot(aes(date, n_cumsum)) +
+  geom_hline(yintercept = 0) +
+  geom_line(size = 2) +
+  scale_y_continuous(label=comma) +
+  labs(title = "Fatal overdoses in Allegheny County",
+       subtitle = "Data from the WPRDC",
+       y = "Cumulative sum",
+       x = "",
+       caption = "Conor Tompkins, @conor_tompkins")
+```
