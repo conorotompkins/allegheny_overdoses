@@ -1,13 +1,12 @@
-
-allegheny\_overdoses
-====================
-
+---
+output: github_document
+---
+#allegheny_overdoses
 A repo for analyzing fatal overdoses in Allegheny County
 
-Basic exploratory analysis
---------------------------
+##Basic exploratory analysis
 
-``` r
+```{r setup, message=FALSE, warning=FALSE, paged.print=FALSE}
 library(tidyverse)
 library(scales)
 library(viridis)
@@ -19,7 +18,7 @@ theme_set(theme_bw(base_size = 18))
 source("scripts/load_data.R")
 ```
 
-``` r
+```{r cumulative_plot, fig.height=12, fig.width=14, message=FALSE, warning=FALSE, paged.print=FALSE}
 df %>% 
   filter(date <= "2017-09-01") %>% 
   count(date) %>% 
@@ -33,5 +32,3 @@ df %>%
        x = "",
        caption = "Conor Tompkins, @conor_tompkins")
 ```
-
-![](README_files/figure-markdown_github/cumulative_plot-1.png)
