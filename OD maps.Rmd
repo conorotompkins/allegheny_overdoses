@@ -1,0 +1,111 @@
+---
+title: "OD mapping"
+author: "Conor Tompkins"
+date: "September 16, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(tidycensus)
+#library(zipcode)
+library(noncensus)
+library(janitor)
+library(lubridate)
+
+options(tigris_use_cache = TRUE)
+
+theme_set(theme_minimal())
+my_census_key <- "a16f3636406d2b544871e2ae49bb318c3ddcacba"
+census_api_key(my_census_key)
+
+census_vars <- load_variables(2010, "sf1", cache = TRUE)
+```
+
+```{r}
+map_df(list.files("data/overdoses", full.names = TRUE), 
+               read_csv, col_names = TRUE, cols(.default = "c")) -> df
+```
+
+```{r}
+df %>% 
+  clean_names() %>% 
+  mutate(id = row_number(),
+         date = mdy(death_date),
+         year = year(date),
+         yday = yday(date),
+         month = month(date, label = TRUE),
+         mday = mday(date),
+         wday = wday(date),
+         incident_zip = as.character(incident_zip),
+         decedent_zip = as.character(decedent_zip)) -> df
+
+df %>% 
+  select(decedent_zip) %>% 
+  filter(decedent_zip != "1`513") %>% 
+  count(decedent_zip, sort = TRUE) %>% 
+  filter(n >= 3) -> df_ods_zip
+
+#data(zip_codes)
+#data("counties")
+#counties %>% 
+#  filter(county_name == "Allegheny County",
+#         state == "PA") %>% 
+#  mutate(fips = str_c(state_fips, county_fips)) -> pa_fips
+
+#zip_codes %>% 
+#  mutate(fips = as.character(fips)) -> zip_codes
+
+#zip_codes %>% 
+#  semi_join(pa_fips) -> allegheny_zipcodes
+```
+
+```{r}
+allegheny_zipcodes <- read_csv("data/Allegheny_County_Zip_Code_Boundaries.csv") %>% 
+  mutate(zip = as.character(ZIP))
+```
+
+```{r}
+#add total population variable, calculcate per capita OD
+get_acs(geography = "zcta",
+        #county = "Allegheny",
+              variables = "B01003_001", 
+              #state = "PA",
+        geometry = TRUE) -> df_geo_zip
+
+get_acs(geography = "county",
+        county = "Allegheny",
+              variables = "B01003_001", 
+              state = "PA",
+        geometry = TRUE) -> df_geo_county
+```
+
+```{r}
+df_geo_zip %>% 
+  semi_join(df_ods_zip, by = c("GEOID" = "decedent_zip")) %>% 
+  left_join(df_ods_zip, by = c("GEOID" = "decedent_zip")) %>% 
+  #complete(year, GEOID) %>% 
+  #replace_na(list(n = 0)) %>% 
+  mutate(od_per_capita = (n / estimate) * 1000) -> df_geo_od
+
+df_geo_od %>% 
+  ggplot() +
+  geom_sf(aes(fill = od_per_capita, color = NULL)) +
+  geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
+  scale_fill_viridis_c()
+```
+
+```{r}
+df %>% 
+  count(decedent_zip, sort = TRUE)
+
+
+```
+
+
