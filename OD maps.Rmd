@@ -30,11 +30,11 @@ census_vars <- load_variables(2010, "sf1", cache = TRUE)
 
 ```{r}
 map_df(list.files("data/overdoses", full.names = TRUE), 
-               read_csv, col_names = TRUE, cols(.default = "c")) -> df
+               read_csv, col_names = TRUE, cols(.default = "c")) -> data
 ```
 
 ```{r}
-df %>% 
+data %>% 
   clean_names() %>% 
   mutate(id = row_number(),
          date = mdy(death_date),
@@ -44,31 +44,33 @@ df %>%
          mday = mday(date),
          wday = wday(date),
          incident_zip = as.character(incident_zip),
-         decedent_zip = as.character(decedent_zip)) -> df
+         decedent_zip = as.character(decedent_zip)) %>% 
+  select(incident_zip, decedent_zip) %>% 
+  gather(zip_type, zip_value) -> df
 
 df %>% 
-  select(decedent_zip) %>% 
-  filter(decedent_zip != "1`513") %>% 
-  count(decedent_zip, sort = TRUE) %>% 
+  filter(zip_type == "incident_zip",
+         zip_value != "1`513") %>% 
+  count(zip_type, zip_value) %>% 
+  arrange(zip_type, desc(n)) %>% 
   filter(n >= 3) -> df_ods_zip
 
-#data(zip_codes)
-#data("counties")
-#counties %>% 
-#  filter(county_name == "Allegheny County",
-#         state == "PA") %>% 
-#  mutate(fips = str_c(state_fips, county_fips)) -> pa_fips
+data(zip_codes)
+data("counties")
+counties %>% 
+  filter(state == "PA") %>% 
+  mutate(fips = str_c(state_fips, county_fips)) -> pa_fips
 
-#zip_codes %>% 
-#  mutate(fips = as.character(fips)) -> zip_codes
+zip_codes %>% 
+  mutate(fips = as.character(fips)) -> zip_codes
 
-#zip_codes %>% 
-#  semi_join(pa_fips) -> allegheny_zipcodes
+zip_codes %>% 
+  semi_join(pa_fips) -> pa_zipcodes
 ```
 
 ```{r}
-allegheny_zipcodes <- read_csv("data/Allegheny_County_Zip_Code_Boundaries.csv") %>% 
-  mutate(zip = as.character(ZIP))
+#allegheny_zipcodes <- read_csv("data/Allegheny_County_Zip_Code_Boundaries.csv") %>% 
+#  mutate(zip = as.character(ZIP))
 ```
 
 ```{r}
@@ -88,8 +90,8 @@ get_acs(geography = "county",
 
 ```{r}
 df_geo_zip %>% 
-  semi_join(df_ods_zip, by = c("GEOID" = "decedent_zip")) %>% 
-  left_join(df_ods_zip, by = c("GEOID" = "decedent_zip")) %>% 
+  semi_join(pa_zipcodes, by = c("GEOID" = "zip")) %>% 
+  left_join(df_ods_zip, by = c("GEOID" = "zip_value")) %>% 
   #complete(year, GEOID) %>% 
   #replace_na(list(n = 0)) %>% 
   mutate(od_per_capita = (n / estimate) * 1000) -> df_geo_od
@@ -98,7 +100,8 @@ df_geo_od %>%
   ggplot() +
   geom_sf(aes(fill = od_per_capita, color = NULL)) +
   geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
-  scale_fill_viridis_c()
+  scale_fill_viridis_c() +
+  coord_sf(xlim = c(-79.4, -80.5), ylim = c(40.2, 40.7))
 ```
 
 ```{r}
