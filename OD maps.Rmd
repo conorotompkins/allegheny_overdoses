@@ -45,15 +45,17 @@ data %>%
          wday = wday(date),
          incident_zip = as.character(incident_zip),
          decedent_zip = as.character(decedent_zip)) %>% 
-  select(incident_zip, decedent_zip) %>% 
-  gather(zip_type, zip_value) -> df
+  select(year, incident_zip, decedent_zip) %>% 
+  filter(!is.na(incident_zip), !is.na(decedent_zip)) -> df
 
 df %>% 
-  filter(zip_type == "incident_zip",
-         zip_value != "1`513") %>% 
-  count(zip_type, zip_value) %>% 
-  arrange(zip_type, desc(n)) %>% 
-  filter(n >= 3) -> df_ods_zip
+  filter(incident_zip != "1`513",
+         decedent_zip != "1`513") %>% 
+  count(year, incident_zip) %>% 
+  complete(year, incident_zip) %>% 
+  replace_na(list(n = 0)) %>% 
+  arrange(year, desc(n)) %>% 
+  spread(year, n) -> df_ods_zip
 
 data(zip_codes)
 data("counties")
@@ -89,19 +91,27 @@ get_acs(geography = "county",
 ```
 
 ```{r}
-df_geo_zip %>% 
-  semi_join(pa_zipcodes, by = c("GEOID" = "zip")) %>% 
-  left_join(df_ods_zip, by = c("GEOID" = "zip_value")) %>% 
+(df_geo_zip %>% 
+  semi_join(pa_zipcodes, by = c("GEOID" = "zip")) -> df_geo_od)
+
+(df_geo_od %>% 
+  left_join(df_ods_zip, by = c("GEOID" = "incident_zip")) -> df_geo_od)
   #complete(year, GEOID) %>% 
   #replace_na(list(n = 0)) %>% 
-  mutate(od_per_capita = (n / estimate) * 1000) -> df_geo_od
 
-df_geo_od %>% 
+(df_geo_od %>% 
+    gather(year, n, -c(GEOID:moe, geometry)) %>% 
+    mutate(od_per_capita = (n / estimate) * 1000) -> df_geo_od)
+
+df_geo_od %>%
+  #filter(year == 2017) %>% 
   ggplot() +
-  geom_sf(aes(fill = od_per_capita, color = NULL)) +
+  geom_sf(aes(fill = n), size = .5, color = "grey") +
   geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
   scale_fill_viridis_c() +
-  coord_sf(xlim = c(-79.4, -80.5), ylim = c(40.2, 40.7))
+  coord_sf(xlim = c(-79.4, -80.5), ylim = c(40.2, 40.7)) +
+  facet_wrap(~year) +
+  theme(axis.text = element_blank())
 ```
 
 ```{r}
