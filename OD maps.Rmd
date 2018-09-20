@@ -3,6 +3,7 @@ title: "OD mapping"
 author: "Conor Tompkins"
 date: "September 16, 2018"
 output: html_document
+runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
@@ -61,7 +62,8 @@ df %>%
 data(zip_codes)
 data("counties")
 counties %>% 
-  filter(state == "PA") %>% 
+  filter(state == "PA",
+         county_name %in% c("Allegheny County", "Washington County", "Butler County", "Westmoreland County", "Beaver County", "Armstrong County")) %>% 
   mutate(fips = str_c(state_fips, county_fips)) -> pa_fips
 
 zip_codes %>% 
@@ -104,36 +106,35 @@ get_acs(geography = "county",
     gather(year, n, -c(GEOID:moe, geometry)) %>% 
     mutate(od_per_capita = (n / estimate) * 1000) -> df_geo_od)
 
+threshhold <- 400
 df_geo_od %>%
-  filter(year == 2016 | year == 2017) %>% 
+  mutate(od_per_capita = case_when(estimate <= threshhold ~ 0,
+                                   estimate > threshhold ~ od_per_capita)) %>% 
+  filter(year == 2015 | year == 2016 | year == 2017) %>% 
   ggplot() +
-  geom_sf(aes(fill = n), size = .1, color = "grey") +
+  geom_sf(aes(fill = od_per_capita), size = .1, color = "grey") +
   geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
-  scale_fill_viridis_c() +
-  coord_sf(xlim = c(-79.4, -80.5), ylim = c(40.2, 40.7)) +
+  scale_fill_viridis_c("Overdoses per 1,000", option = "B") +
+  scale_alpha_continuous(range = c(.5, 1)) +
+  coord_sf(xlim = c(-79.6, -80.4), ylim = c(40.2, 40.7)) +
   facet_wrap(~year) +
+  labs(title = "Allegheny County Fatal Overdoses",
+       subtitle = str_c("Zip codes with < ", threshhold, " population set to 0", "\nPopulation based on 2012-2016 ACS"),
+       caption = "@conor_tompkins, data from WPRDC") +
   theme(axis.text = element_blank())
 ```
 
-```{r}
+```{r eval = FALSE}
 df_geo_od %>%
+  mutate(year = as.numeric(year)) %>% 
   filter(year == 2016 | year == 2017) %>% 
   ggplot() +
   geom_sf(aes(fill = n), size = .1, color = "grey") +
   geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
   scale_fill_viridis_c() +
   coord_sf(xlim = c(-79.4, -80.5), ylim = c(40.2, 40.7)) +
-  facet_wrap(~year) +
+  #facet_wrap(~year) +
   theme(axis.text = element_blank()) +
-  transition_time(year)
+  transition_states(year, transition_length = 1, state_length = 1) +
+  ease_aes("linear")
 ```
-
-
-```{r}
-df %>% 
-  count(decedent_zip, sort = TRUE)
-
-
-```
-
-
