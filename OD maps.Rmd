@@ -18,6 +18,7 @@ library(tidycensus)
 library(noncensus)
 library(janitor)
 library(lubridate)
+library(gganimate)
 
 options(tigris_use_cache = TRUE)
 
@@ -104,15 +105,29 @@ get_acs(geography = "county",
     mutate(od_per_capita = (n / estimate) * 1000) -> df_geo_od)
 
 df_geo_od %>%
-  #filter(year == 2017) %>% 
+  filter(year == 2016 | year == 2017) %>% 
   ggplot() +
-  geom_sf(aes(fill = n), size = .5, color = "grey") +
+  geom_sf(aes(fill = n), size = .1, color = "grey") +
   geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
   scale_fill_viridis_c() +
   coord_sf(xlim = c(-79.4, -80.5), ylim = c(40.2, 40.7)) +
   facet_wrap(~year) +
   theme(axis.text = element_blank())
 ```
+
+```{r}
+df_geo_od %>%
+  filter(year == 2016 | year == 2017) %>% 
+  ggplot() +
+  geom_sf(aes(fill = n), size = .1, color = "grey") +
+  geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
+  scale_fill_viridis_c() +
+  coord_sf(xlim = c(-79.4, -80.5), ylim = c(40.2, 40.7)) +
+  facet_wrap(~year) +
+  theme(axis.text = element_blank()) +
+  transition_time(year)
+```
+
 
 ```{r}
 df %>% 
