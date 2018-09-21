@@ -20,6 +20,7 @@ library(noncensus)
 library(janitor)
 library(lubridate)
 library(gganimate)
+library(sf)
 
 options(tigris_use_cache = TRUE)
 
@@ -125,16 +126,72 @@ df_geo_od %>%
 ```
 
 ```{r eval = FALSE}
+threshhold <- 400
+
 df_geo_od %>%
-  mutate(year = as.numeric(year)) %>% 
-  filter(year == 2016 | year == 2017) %>% 
+  mutate(od_per_capita = case_when(estimate <= threshhold ~ 0,
+                                   estimate > threshhold ~ od_per_capita)) %>% 
+  #filter(year == 2015 | year == 2016 | year == 2017) %>%  
   ggplot() +
-  geom_sf(aes(fill = n), size = .1, color = "grey") +
+  geom_sf(aes(fill = od_per_capita), size = .1, color = "grey") +
   geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
-  scale_fill_viridis_c() +
+  scale_fill_viridis_c("Overdoses per 1,000", option = "B") +
   coord_sf(xlim = c(-79.4, -80.5), ylim = c(40.2, 40.7)) +
-  #facet_wrap(~year) +
+  labs(title = "Allegheny County Fatal Overdoses",
+    subtitle = str_c("Year: {closest_state}. ", 
+                     "Zip codes with < ", 
+                     threshhold, 
+                     " population set to 0", 
+                     "\nPopulation based on 2012-2016 ACS"),
+    caption = "@conor_tompkins, data from WPRDC") +
   theme(axis.text = element_blank()) +
-  transition_states(year, transition_length = 1, state_length = 1) +
-  ease_aes("linear")
+  transition_states(year, transition_length = .5, state_length = 2) +
+  ease_aes("linear") -> ani
+
+#animate(ani, nframes = 100)
+gif_ani <- animate(ani, nframes = 100)
+anim_save("overdose_map.gif", animation = gif_ani)
+```
+
+```{r}
+threshhold <- 400
+
+df_geo_od %>%
+  st_set_geometry(NULL) %>% 
+  mutate(od_per_capita = case_when(estimate <= threshhold ~ 0,
+                                   estimate > threshhold ~ od_per_capita)) %>% 
+  arrange(GEOID, year) %>% 
+  group_by(GEOID) %>% 
+  mutate(cum_sum = cumsum(od_per_capita)) %>% 
+  select(GEOID, year, cum_sum) -> test
+
+test %>% 
+  ggplot(aes(year, cum_sum, group = GEOID)) +
+  geom_line()
+
+df_geo_od %>% 
+  left_join(test) %>% 
+  #filter(year == 2015 | year == 2016 | year == 2017) %>%  
+  ggplot() +
+  geom_sf(aes(fill = cum_sum), size = .1, color = "grey") +
+  geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
+  scale_fill_viridis_c("Cumulative overdoses per 1,000", option = "B") +
+  coord_sf(xlim = c(-79.4, -80.5), ylim = c(40.2, 40.7)) +
+  labs(title = "Allegheny County Fatal Overdoses",
+    subtitle = str_c("Year: {closest_state}. ", 
+                     "Zip codes with < ", 
+                     threshhold, 
+                     " population set to 0", 
+                     "\nPopulation based on 2012-2016 ACS"),
+    caption = "@conor_tompkins, data from WPRDC") +
+  theme(axis.text = element_blank()) +
+  #facet_wrap(~year)
+  transition_states(year, transition_length = .5, state_length = 1) +
+  ease_aes("linear") -> ani
+
+gif_ani <- animate(ani, nframes = 100)
+gif_ani
+anim_save("cumulative_overdose_map.gif", animation = gif_ani)
+
+
 ```
