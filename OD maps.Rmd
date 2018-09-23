@@ -21,6 +21,7 @@ library(janitor)
 library(lubridate)
 library(gganimate)
 library(sf)
+library(tigris)
 
 options(tigris_use_cache = TRUE)
 
@@ -43,28 +44,30 @@ data %>%
          date = mdy(death_date),
          year = year(date),
          yday = yday(date),
-         month = month(date, label = TRUE),
+         month = month(date),
          mday = mday(date),
          wday = wday(date),
          incident_zip = as.character(incident_zip),
-         decedent_zip = as.character(decedent_zip)) %>% 
-  select(year, incident_zip, decedent_zip) %>% 
+         decedent_zip = as.character(decedent_zip),
+         date = ymd(str_c(year, month, sep = "-"), truncated = 1)) %>% 
+  select(date, year, month, incident_zip, decedent_zip) %>% 
   filter(!is.na(incident_zip), !is.na(decedent_zip)) -> df
 
 df %>% 
   filter(incident_zip != "1`513",
          decedent_zip != "1`513") %>% 
-  count(year, incident_zip) %>% 
-  complete(year, incident_zip) %>% 
+  count(date, incident_zip) %>% 
+  complete(date, incident_zip) %>% 
   replace_na(list(n = 0)) %>% 
-  arrange(year, desc(n)) %>% 
-  spread(year, n) -> df_ods_zip
+  spread(date, n) -> df_ods_zip
 
 data(zip_codes)
 data("counties")
 counties %>% 
   filter(state == "PA",
-         county_name %in% c("Allegheny County", "Washington County", "Butler County", "Westmoreland County", "Beaver County", "Armstrong County")) %>% 
+         county_name %in% c("Allegheny County", "Washington County", 
+                            "Butler County", "Westmoreland County", 
+                            "Beaver County", "Armstrong County")) %>% 
   mutate(fips = str_c(state_fips, county_fips)) -> pa_fips
 
 zip_codes %>% 
@@ -87,6 +90,14 @@ get_acs(geography = "zcta",
               #state = "PA",
         geometry = TRUE) -> df_geo_zip
 
+st_erase <- function(x, y) {
+  st_difference(x, st_union(st_combine(y)))
+}
+
+allegheny_water <- area_water("PA", "Allegheny", class = "sf")
+
+df_geo_zip <- st_erase(df_geo_zip, allegheny_water)
+
 get_acs(geography = "county",
         county = "Allegheny",
               variables = "B01003_001", 
@@ -104,14 +115,17 @@ get_acs(geography = "county",
   #replace_na(list(n = 0)) %>% 
 
 (df_geo_od %>% 
-    gather(year, n, -c(GEOID:moe, geometry)) %>% 
-    mutate(od_per_capita = (n / estimate) * 1000) -> df_geo_od)
+    gather(date, n, -c(GEOID:moe, geometry)) %>% 
+    mutate(year = year(date),
+           od_per_capita = (n / estimate) * 1000) -> df_geo_od)
 
 threshhold <- 400
 df_geo_od %>%
   mutate(od_per_capita = case_when(estimate <= threshhold ~ 0,
                                    estimate > threshhold ~ od_per_capita)) %>% 
-  filter(year == 2015 | year == 2016 | year == 2017) %>% 
+  filter(year >= 2015) %>%
+  group_by(GEOID, year) %>% 
+  summarize(od_per_capita = sum(od_per_capita)) %>% 
   ggplot() +
   geom_sf(aes(fill = od_per_capita), size = .1, color = "grey") +
   geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
@@ -127,11 +141,12 @@ df_geo_od %>%
 
 ```{r eval = FALSE}
 threshhold <- 400
-
 df_geo_od %>%
   mutate(od_per_capita = case_when(estimate <= threshhold ~ 0,
                                    estimate > threshhold ~ od_per_capita)) %>% 
-  #filter(year == 2015 | year == 2016 | year == 2017) %>%  
+  filter(year >= 2015) %>%
+  group_by(GEOID, year) %>% 
+  summarize(od_per_capita = sum(od_per_capita)) %>%
   ggplot() +
   geom_sf(aes(fill = od_per_capita), size = .1, color = "grey") +
   geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
@@ -151,6 +166,8 @@ df_geo_od %>%
 #animate(ani, nframes = 100)
 gif_ani <- animate(ani, nframes = 100)
 anim_save("overdose_map.gif", animation = gif_ani)
+gif_ani
+
 ```
 
 ```{r}
@@ -160,18 +177,22 @@ df_geo_od %>%
   st_set_geometry(NULL) %>% 
   mutate(od_per_capita = case_when(estimate <= threshhold ~ 0,
                                    estimate > threshhold ~ od_per_capita)) %>% 
+  group_by(GEOID, year) %>% 
+  summarize(od_per_capita = sum(od_per_capita)) %>% 
+  ungroup() %>% 
+  filter(year >= 2015) %>% 
   arrange(GEOID, year) %>% 
   group_by(GEOID) %>% 
   mutate(cum_sum = cumsum(od_per_capita)) %>% 
-  select(GEOID, year, cum_sum) -> test
+  select(GEOID, year, cum_sum) -> df_cumulative
 
-test %>% 
+df_cumulative %>% 
   ggplot(aes(year, cum_sum, group = GEOID)) +
   geom_line()
 
 df_geo_od %>% 
-  left_join(test) %>% 
-  #filter(year == 2015 | year == 2016 | year == 2017) %>%  
+  left_join(df_cumulative) %>% 
+  filter(year >= 2015) %>%  
   ggplot() +
   geom_sf(aes(fill = cum_sum), size = .1, color = "grey") +
   geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
@@ -189,7 +210,7 @@ df_geo_od %>%
   transition_states(year, transition_length = .5, state_length = 1) +
   ease_aes("linear") -> ani
 
-gif_ani <- animate(ani, nframes = 100)
+gif_ani <- animate(ani)
 gif_ani
 anim_save("cumulative_overdose_map.gif", animation = gif_ani)
 
