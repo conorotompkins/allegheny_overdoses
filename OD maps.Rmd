@@ -96,7 +96,7 @@ st_erase <- function(x, y) {
 
 allegheny_water <- area_water("PA", "Allegheny", class = "sf")
 
-df_geo_zip <- st_erase(df_geo_zip, allegheny_water)
+#df_geo_zip <- st_erase(df_geo_zip, allegheny_water)
 
 get_acs(geography = "county",
         county = "Allegheny",
@@ -188,7 +188,8 @@ df_geo_od %>%
 
 df_cumulative %>% 
   ggplot(aes(year, cum_sum, group = GEOID)) +
-  geom_line()
+  geom_line() +
+  transition_reveal(GEOID, year)
 
 df_geo_od %>% 
   left_join(df_cumulative) %>% 
