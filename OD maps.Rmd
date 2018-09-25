@@ -90,14 +90,6 @@ get_acs(geography = "zcta",
               #state = "PA",
         geometry = TRUE) -> df_geo_zip
 
-st_erase <- function(x, y) {
-  st_difference(x, st_union(st_combine(y)))
-}
-
-allegheny_water <- area_water("PA", "Allegheny", class = "sf")
-
-#df_geo_zip <- st_erase(df_geo_zip, allegheny_water)
-
 get_acs(geography = "county",
         county = "Allegheny",
               variables = "B01003_001", 
@@ -119,11 +111,21 @@ get_acs(geography = "county",
     mutate(year = year(date),
            od_per_capita = (n / estimate) * 1000) -> df_geo_od)
 
+st_erase <- function(x, y) {
+  st_difference(x, st_union(st_combine(y)))
+}
+
+allegheny_water <- area_water("PA", "Allegheny", class = "sf")
+
+df_geo_zip <- st_erase(df_geo_zip, allegheny_water)
+```
+```{r}
 threshhold <- 400
 df_geo_od %>%
   mutate(od_per_capita = case_when(estimate <= threshhold ~ 0,
                                    estimate > threshhold ~ od_per_capita)) %>% 
   filter(year >= 2015) %>%
+  na.omit() %>% 
   group_by(GEOID, year) %>% 
   summarize(od_per_capita = sum(od_per_capita)) %>% 
   ggplot() +
@@ -145,6 +147,7 @@ df_geo_od %>%
   mutate(od_per_capita = case_when(estimate <= threshhold ~ 0,
                                    estimate > threshhold ~ od_per_capita)) %>% 
   filter(year >= 2015) %>%
+  na.omit() %>% 
   group_by(GEOID, year) %>% 
   summarize(od_per_capita = sum(od_per_capita)) %>%
   ggplot() +
@@ -165,8 +168,9 @@ df_geo_od %>%
 
 #animate(ani, nframes = 100)
 gif_ani <- animate(ani, nframes = 100)
-anim_save("overdose_map.gif", animation = gif_ani)
 gif_ani
+anim_save("overdose_map.gif", animation = gif_ani)
+
 
 ```
 
