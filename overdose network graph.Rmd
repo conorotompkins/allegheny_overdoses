@@ -3,6 +3,7 @@ title: "od network"
 author: "Conor Tompkins"
 date: "September 17, 2018"
 output: html_document
+runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
@@ -20,6 +21,7 @@ library(janitor)
 library(lubridate)
 library(ggraph)
 library(tidygraph)
+library(sf)
 
 options(tigris_use_cache = TRUE)
 
@@ -32,21 +34,22 @@ census_vars <- load_variables(2010, "sf1", cache = TRUE)
 
 ```{r}
 map_df(list.files("data/overdoses", full.names = TRUE), 
-               read_csv, col_names = TRUE, cols(.default = "c")) -> df
+               read_csv, col_names = TRUE, cols(.default = "c")) -> data
 ```
 
 ```{r}
-df %>% 
+data %>% 
   clean_names() %>% 
   mutate(id = row_number(),
-         date = mdy(death_date),
-         year = year(date),
-         yday = yday(date),
-         month = month(date, label = TRUE),
-         mday = mday(date),
-         wday = wday(date),
+         #date = mdy(death_date),
+         #year = year(date),
+         #yday = yday(date),
+         #month = month(date, label = TRUE),
+         #mday = mday(date),
+         #wday = wday(date),
          incident_zip = as.character(incident_zip),
-         decedent_zip = as.character(decedent_zip)) -> df
+         decedent_zip = as.character(decedent_zip),
+         loop = (incident_zip == decedent_zip)) -> df
 ```
 
 ```{r}
@@ -54,8 +57,11 @@ df %>%
   #mutate(from = decedent_zip,
   #       to = incident_zip) %>% 
   #count(from, to, sort = TRUE) %>% 
-  count(decedent_zip, incident_zip, sort = TRUE) %>% 
-  filter(n >= 10) -> df_graph
+  count(decedent_zip, incident_zip, loop, sort = TRUE) -> df_graph
+
+df_graph %>% 
+  #group_by(incident_zip) %>% 
+  summarize(loop = loop)
 
 df_graph %>% 
   ggplot(aes(decedent_zip, incident_zip)) +
@@ -64,11 +70,74 @@ df_graph %>%
 
 ```{r}
 df_graph %>% 
-  as_tbl_graph() %>% 
-  ggraph() +
-  geom_node_point() +
-  geom_edge_loop()
+  filter(loop == FALSE,
+         n > 1) %>% 
+  as_tbl_graph(directed = TRUE) %>% 
+  ggraph(layout = "kk") +
+  geom_edge_fan(aes(edge_width = n, edge_alpha = n),
+                arrow = arrow(length = unit(4, 'mm')), 
+                  start_cap = circle(3, 'mm'),
+                  end_cap = circle(3, 'mm')) +
+  geom_node_label(aes(label = name)) +
+  scale_edge_width_continuous(range = c(.3, 3)) +
+  scale_edge_alpha_continuous(range = c(.3, 1))
+```
+
+```{r}
+get_acs(geography = "zcta",
+        #county = "Allegheny",
+              variables = "B01003_001", 
+              #state = "PA",
+        geometry = TRUE) -> df_geo_zip
+```
+
+```{r}
+df_geo_zip %>% 
+  st_centroid() %>% 
+  st_coordinates() %>% 
+  ggplot(aes(X, Y)) +
+  geom_point()
+
+sfc_as_cols <- function(x, geometry, names = c("x","y")) {
+  if (missing(geometry)) {
+    geometry <- sf::st_geometry(x)
+  } else {
+    geometry <- rlang::eval_tidy(enquo(geometry), x)
+  }
+  stopifnot(inherits(x,"sf") && inherits(geometry,"sfc_POINT"))
+  ret <- sf::st_coordinates(geometry)
+  ret <- tibble::as_tibble(ret)
+  stopifnot(length(names) == ncol(ret))
+  x <- x[ , !names(x) %in% names]
+  ret <- setNames(ret,names)
+  dplyr::bind_cols(x,ret)
+}
+
+df_geo_zip %>% 
+  st_centroid() %>% 
+  sfc_as_cols() %>%
+  st_set_geometry(NULL) -> df_geo_zip_centroids
+
+df_geo_zip %>% 
+  right_join(df_graph, by = c("GEOID" = "incident_zip")) %>% 
+  left_join(df_geo_zip_centroids) %>% 
+  ggplot() +
+  geom_sf() +
+  geom_point(aes(x, y), size = 1)
+  
+
+
+
 ```
 
 
+
+
+
+
+
+
+
+
+Look at net exporter zips vs net importer
 
