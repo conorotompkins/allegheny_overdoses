@@ -1,24 +1,28 @@
 library(tidyverse)
+library(janitor)
 library(lubridate)
-library(stringr)
 
-rm(list = ls())
-data_path <- "./data/overdoses"
-data_list <- list.files(path = data_path, pattern = ".csv")
-data_list <- paste0(data_path, "/", data_list)
-data_list <- lapply(data_list, read_csv)
+#rm(list = ls())
+#data_path <- "./data/overdoses"
+#data_list <- list.files(path = data_path, pattern = ".csv")
+#data_list <- paste0(data_path, "/", data_list)
+#data_list <- lapply(data_list, read_csv)
 
-for(i in seq_along(data_list)){
-  data_list[[i]]$`Incident Zip` <- as.character(data_list[[i]]$`Incident Zip`)
-  data_list[[i]]$`Decedent Zip` <- as.character(data_list[[i]]$`Decedent Zip`)
-}
+#for(i in seq_along(data_list)){
+#  data_list[[i]]$`Incident Zip` <- as.character(data_list[[i]]$`Incident Zip`)
+#  data_list[[i]]$`Decedent Zip` <- as.character(data_list[[i]]$`Decedent Zip`)
+#}
 
-data <- bind_rows(data_list)
+#data <- bind_rows(data_list)
 
-colnames(data) <- tolower(colnames(data))
-colnames(data) <- gsub(" ", "_", colnames(data))
+#colnames(data) <- tolower(colnames(data))
+#colnames(data) <- gsub(" ", "_", colnames(data))
+
+map_df(list.files("data/overdoses", full.names = TRUE), 
+       read_csv, col_names = TRUE, cols(.default = "c")) -> data
 
 data %>%
+  clean_names() %>% 
   mutate(id = row_number(),
          date = mdy(death_date),
          year = year(date),
