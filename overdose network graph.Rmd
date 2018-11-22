@@ -59,11 +59,9 @@ df %>%
   #count(from, to, sort = TRUE) %>% 
   count(decedent_zip, incident_zip, loop, sort = TRUE) -> df_graph
 
-df_graph %>% 
-  #group_by(incident_zip) %>% 
-  summarize(loop = loop)
 
 df_graph %>% 
+  filter(loop == FALSE) %>% 
   ggplot(aes(decedent_zip, incident_zip)) +
   geom_point()
 ```
@@ -78,9 +76,17 @@ df_graph %>%
                 arrow = arrow(length = unit(4, 'mm')), 
                   start_cap = circle(3, 'mm'),
                   end_cap = circle(3, 'mm')) +
-  geom_node_label(aes(label = name)) +
+  geom_node_label(aes(label = name), size = .5) +
   scale_edge_width_continuous(range = c(.3, 3)) +
   scale_edge_alpha_continuous(range = c(.3, 1))
+```
+
+```{r}
+df_graph %>% 
+  select(incident_zip, decedent_zip) %>% 
+  gather(zip_type, zip_code) %>% 
+  select(zip_code) %>% 
+  distinct() -> df_zip_distinct
 ```
 
 ```{r}
@@ -90,6 +96,17 @@ get_acs(geography = "zcta",
               #state = "PA",
         geometry = TRUE) -> df_geo_zip
 ```
+
+```{r}
+df_geo_zip <- cbind(df_geo_zip, st_coordinates(st_centroid(df_geo_zip)))
+
+df_geo_zip %>% 
+  semi_join(df_zip_distinct, by = c("GEOID" = "zip_code")) %>% 
+  ggplot() +
+  geom_sf() #+
+  #geom_point(aes(X, Y))
+```
+
 
 ```{r}
 df_geo_zip %>% 
