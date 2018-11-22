@@ -94,21 +94,92 @@ get_acs(geography = "zcta",
         #county = "Allegheny",
               variables = "B01003_001", 
               #state = "PA",
-        geometry = TRUE) -> df_geo_zip
+        geometry = TRUE) %>% 
+  distinct() -> df_geo_zip
 ```
 
 ```{r}
 df_geo_zip <- cbind(df_geo_zip, st_coordinates(st_centroid(df_geo_zip)))
 
-df_geo_zip %>% 
-  semi_join(df_zip_distinct, by = c("GEOID" = "zip_code")) %>% 
-  ggplot() +
-  geom_sf() #+
+#df_geo_zip %>% 
+#  semi_join(df_zip_distinct, by = c("GEOID" = "zip_code")) -> df_geo_zip
+
+#df_geo_zip %>% 
+#  ggplot() +
+#  geom_sf() #+
   #geom_point(aes(X, Y))
+```
+
+```{r}
+df_pa_zip_codes <- read_csv("data/PA zip codes.csv") %>% 
+  mutate(zip_code = as.character(zip_code))
+```
+```{r}
+df_pa_zip_codes
+df_geo_zip
+
+df_geo_zip %>% 
+  right_join(df_pa_zip_codes, by = c("GEOID" = "zip_code")) %>% 
+  filter(county == "Allegheny") -> df_allegheny
+
+df_allegheny %>% 
+  ggplot() +
+  geom_sf() +
+  geom_point(aes(X, Y))
 ```
 
 
 ```{r}
+df_graph %>% 
+  semi_join(df_allegheny %>% select(GEOID) %>% st_set_geometry(NULL), by = c("incident_zip" = "GEOID")) %>% 
+  semi_join(df_allegheny %>% select(GEOID) %>% st_set_geometry(NULL), by = c("incident_zip" = "GEOID"))-> df_graph_allegheny
+
+df_graph_allegheny %>% 
+  distinct(incident_zip)
+df_graph_allegheny %>% 
+  distinct(decedent_zip)
+```
+
+```{r}
+df_graph_allegheny %>% 
+  select(incident_zip, decedent_zip, loop, n) %>% 
+  filter(loop == FALSE) %>%  
+  as_tbl_graph(directed = TRUE) -> df_network
+
+df_network
+
+
+df_network %>% 
+  ggraph() +
+  geom_edge_fan(aes(edge_width = n)) +
+  geom_node_point()
+```
+```{r}
+df_network
+```
+
+```{r}
+node_pos <- df_allegheny %>%
+  select(GEOID, X, Y) %>%
+  rename(x = X, y = Y) %>%  # node positions must be called x, y
+  st_set_geometry(NULL)
+str(node_pos)
+```
+```{r}
+lay <- create_layout(df_network, 'manual',
+                     node.positions = node_pos)
+
+manual_layout <- create_layout(graph = df_network,
+                               layout = "manual", node.positions = node_pos)
+```
+
+
+
+
+
+
+
+```{r eval = FALSE, include = FALSE}
 df_geo_zip %>% 
   st_centroid() %>% 
   st_coordinates() %>% 
