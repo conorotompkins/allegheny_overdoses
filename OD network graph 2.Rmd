@@ -1,0 +1,114 @@
+---
+title: "od network 2"
+author: "Conor Tompkins"
+date: "September 17, 2018"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(tidycensus)
+#library(zipcode)
+library(noncensus)
+library(janitor)
+library(lubridate)
+library(ggraph)
+library(tidygraph)
+library(sf)
+
+options(tigris_use_cache = TRUE)
+
+theme_set(theme_minimal())
+my_census_key <- "a16f3636406d2b544871e2ae49bb318c3ddcacba"
+census_api_key(my_census_key)
+
+census_vars <- load_variables(2010, "sf1", cache = TRUE)
+```
+
+```{r}
+map_df(list.files("data/overdoses", full.names = TRUE), 
+               read_csv, col_names = TRUE, cols(.default = "c")) -> data
+```
+
+```{r}
+data %>% 
+  clean_names() %>% 
+  mutate(id = row_number(),
+         incident_zip = as.character(incident_zip),
+         decedent_zip = as.character(decedent_zip),
+         loop = (incident_zip == decedent_zip)) -> df
+```
+
+```{r}
+df %>% 
+  #mutate(from = decedent_zip,
+  #       to = incident_zip) %>% 
+  #count(from, to, sort = TRUE) %>% 
+  count(decedent_zip, incident_zip, loop, sort = TRUE) -> df_graph
+
+
+df_graph %>% 
+  filter(loop == FALSE) %>% 
+  ggplot(aes(decedent_zip, incident_zip, fill = n)) +
+  geom_tile()
+```
+
+```{r}
+df_allegheny_zip_codes <- read_csv("data/PA zip codes.csv") %>% 
+  mutate(zip_code = as.character(zip_code)) %>% 
+  filter(county == "Allegheny")
+```
+
+
+
+```{r}
+df_graph %>% 
+  semi_join(df_allegheny_zip_codes, by = c("incident_zip" = "zip_code")) %>%
+  semi_join(df_allegheny_zip_codes, by = c("decedent_zip" = "zip_code")) -> df_graph
+```
+
+```{r}
+get_acs(geography = "zcta",
+        #county = "Allegheny",
+              variables = "B01003_001", 
+              #state = "PA",
+        geometry = TRUE) %>% 
+  distinct() -> df_geometry
+
+df_geometry <- cbind(df_geometry, st_coordinates(st_centroid(df_geometry)))
+```
+
+
+```{r}
+df_geometry %>% 
+  semi_join(df_allegheny_zip_codes, by = c("GEOID" = "zip_code")) -> df_geometry
+
+df_geometry %>% 
+  ggplot() +
+  geom_sf() +
+  geom_point(aes(X, Y), size = .5)
+```
+
+```{r}
+df_graph %>% 
+  as_tbl_graph(directed = TRUE) %>% 
+  activate(edges) %>% 
+  filter(loop == FALSE,
+         n > 1) %>% 
+  ggraph() +
+  geom_node_label(aes(label = name), size = 1, repel = FALSE) +
+  geom_edge_fan(aes(edge_width = n, edge_alpha = n),
+                arrow = arrow(length = unit(4, 'mm')), 
+                start_cap = circle(3, 'mm'),
+                end_cap = circle(3, 'mm'),
+                color = "blue") +
+  scale_edge_width_continuous("Number of overdoses", range = c(.3, 1)) +
+  scale_edge_alpha_continuous("Number of overdoses", range = c(.1, 1))
+```
