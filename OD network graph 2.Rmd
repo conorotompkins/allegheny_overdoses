@@ -48,16 +48,16 @@ data %>%
 
 ```{r}
 df %>% 
-  #mutate(from = decedent_zip,
-  #       to = incident_zip) %>% 
-  #count(from, to, sort = TRUE) %>% 
+  select(incident_zip, decedent_zip, loop) %>% 
+  filter(incident_zip != "1`513") %>% 
+  filter(!(decedent_zip %in% c("15-71", "1220"))) %>% 
+  filter(loop == FALSE) %>% 
   count(decedent_zip, incident_zip, loop, sort = TRUE) -> df_graph
 
-
 df_graph %>% 
-  filter(loop == FALSE) %>% 
   ggplot(aes(decedent_zip, incident_zip, fill = n)) +
-  geom_tile()
+  geom_tile() +
+  theme_bw()
 ```
 
 ```{r}
@@ -65,8 +65,6 @@ df_allegheny_zip_codes <- read_csv("data/PA zip codes.csv") %>%
   mutate(zip_code = as.character(zip_code)) %>% 
   filter(county == "Allegheny")
 ```
-
-
 
 ```{r}
 df_graph %>% 
@@ -85,7 +83,6 @@ get_acs(geography = "zcta",
 df_geometry <- cbind(df_geometry, st_coordinates(st_centroid(df_geometry)))
 ```
 
-
 ```{r}
 df_geometry %>% 
   semi_join(df_allegheny_zip_codes, by = c("GEOID" = "zip_code")) -> df_geometry
@@ -100,8 +97,7 @@ df_geometry %>%
 df_graph %>% 
   as_tbl_graph(directed = TRUE) %>% 
   activate(edges) %>% 
-  filter(loop == FALSE,
-         n > 1) %>% 
+  filter(loop == FALSE) %>% 
   ggraph() +
   geom_node_label(aes(label = name), size = 1, repel = FALSE) +
   geom_edge_fan(aes(edge_width = n, edge_alpha = n),
@@ -111,4 +107,40 @@ df_graph %>%
                 color = "blue") +
   scale_edge_width_continuous("Number of overdoses", range = c(.3, 1)) +
   scale_edge_alpha_continuous("Number of overdoses", range = c(.1, 1))
+```
+
+```{r}
+df_graph %>% 
+  full_join(df_allegheny_zip_codes, by = c("incident_zip" = "zip_code")) %>% 
+  full_join(df_allegheny_zip_codes, by = c("decedent_zip" = "zip_code")) %>% 
+  replace_na(list = c(n, 0)) -> df_graph
+```
+
+```{r}
+df_graph %>% 
+  as_tbl_graph(directed = TRUE) -> g
+```
+
+```{r}
+node_pos <- df_geometry %>%
+  select(GEOID, X, Y) %>%
+  rename(x = X, y = Y) %>%  # node positions must be called x, y
+  st_set_geometry(NULL)
+str(node_pos)
+```
+
+```{r}
+g
+node_pos
+
+```
+
+
+```{r}
+lay <- create_layout(g, 'manual',
+                     node.positions = node_pos)
+
+manual_layout <- create_layout(graph = g,
+                               layout = "manual", node.positions = node_pos)
+
 ```
