@@ -18,7 +18,8 @@ library(lubridate)
 #colnames(data) <- tolower(colnames(data))
 #colnames(data) <- gsub(" ", "_", colnames(data))
 
-URLs <- c("2017" = "https://data.wprdc.org/dataset/7fb0505e-8e2c-4825-b22c-4fbee8fc8010/resource/2d963e35-4f69-495e-985e-55acd72c87ca/download/crimelabaccidentaldrugdeathsextract2017.csv",
+URLs <- c("2018" = "https://data.wprdc.org/dataset/7fb0505e-8e2c-4825-b22c-4fbee8fc8010/resource/239d3b6f-ddec-4e96-97a7-e70f6ef5a556/download/crime_lab_accidental_drug_deaths_extract_2018-oct.csv",
+          "2017" = "https://data.wprdc.org/dataset/7fb0505e-8e2c-4825-b22c-4fbee8fc8010/resource/2d963e35-4f69-495e-985e-55acd72c87ca/download/crimelabaccidentaldrugdeathsextract2017.csv",
           "2016" = "https://data.wprdc.org/dataset/7fb0505e-8e2c-4825-b22c-4fbee8fc8010/resource/386ca0ed-717d-46d3-8ed2-da37553ec6d1/download/crimelabaccidentaldrugdeathsextract2016.csv",
           "2015" = "https://data.wprdc.org/dataset/7fb0505e-8e2c-4825-b22c-4fbee8fc8010/resource/502136a8-649b-44c5-9b08-ec2733201e5f/download/crimelabaccidentaldrugdeathsextract2015.csv",
           "2014" = "https://data.wprdc.org/dataset/7fb0505e-8e2c-4825-b22c-4fbee8fc8010/resource/7146df41-9531-4327-961a-362ad6f3d2c3/download/crimelabaccidentaldrugdeathsextract2014.csv",
@@ -28,7 +29,9 @@ URLs <- c("2017" = "https://data.wprdc.org/dataset/7fb0505e-8e2c-4825-b22c-4fbee
           "2010" = "https://data.wprdc.org/dataset/7fb0505e-8e2c-4825-b22c-4fbee8fc8010/resource/8f8d068c-9c4b-4563-bc3b-1eee72bbf533/download/crimelabaccidentaldrugdeathsextract2010.csv",
           "2009" = "https://data.wprdc.org/dataset/7fb0505e-8e2c-4825-b22c-4fbee8fc8010/resource/395f38ac-d021-4b33-959d-b06bd7b9efe1/download/crimelabaccidentaldrugdeathsextract2009.csv",
           "2008" = "https://data.wprdc.org/dataset/7fb0505e-8e2c-4825-b22c-4fbee8fc8010/resource/233c321d-ff80-4d06-85b7-d5c3f227f2a8/download/crimelabaccidentaldrugdeathsextract2008.csv")
+
 URLs
+
 map_df(URLs, read_csv, col_names = TRUE, cols(.default = "c")) -> data
 
 #map_df(list.files("data/overdoses", full.names = TRUE), 
