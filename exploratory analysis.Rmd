@@ -36,18 +36,18 @@ theme_set(theme_bw(base_size = 18))
 #identify cutoff date for 2017
 #cumulative sum
 df %>% 
-  filter(year >= 2017) %>% 
+  #filter(year >= 2017) %>% 
   count(date) %>% 
   mutate(n_cumsum = cumsum(n)) %>% 
   ggplot(aes(date, n_cumsum)) +
   geom_hline(yintercept = 0) +
-  geom_vline(xintercept = ymd("2017-12-01")) +
+  geom_vline(xintercept = ymd("2018-07-31")) +
   geom_line(size = 2) +
   labs(y = "Cumulative Sum of Fatal Overdoses")
 ```
 
 ```{r}
-cutoff <- "2017-09-01"
+cutoff <- "2018-07-31"
 df %>% 
   filter(date <= cutoff) %>% 
   count(date) %>% 
@@ -104,6 +104,7 @@ df %>%
   scale_y_continuous(label=comma) +
   labs(y = "Cumulative Sum of Fatal Overdoses")
 ```
+
 ```{r}
 #fatal overdoses by zip code
 top_zips <- df %>% 
@@ -226,7 +227,7 @@ ggplot(data = df_factors_cumsum, aes(x = date, y = od_cumsum, color = od_factor)
        caption = "Not exclusive")
 ```
 
-#2017ncumsum by drug
+#2017 ncumsum by drug
 ```{r}
 df_factors_long %>% 
   filter(date >= "2017-01-01") %>% 
@@ -254,30 +255,28 @@ df_factors_cumsum_2017 %>%
 #create tile df
 ```{r}
 df %>% 
-  group_by(year, month, mday) %>%
+  group_by(date, year, month, mday) %>%
   summarize(n = n()) %>% 
   ungroup() %>% 
-  complete(year, month, mday = 1:31) %>% 
-  replace_na(list(n = 0)) -> df_tile
+  complete(year, month, mday) %>% 
+  replace_na(list(n = 0)) %>% 
+  mutate(date = ymd(str_c(year, month, mday, sep = "-"))) -> df_tile
 
 #hack the data so NA and 0s aren't combined
-df_tile$n[df_tile$year == 2017 & df_tile$month == "Sep" & df_tile$mday >= 1] <- NA
-df_tile$n[df_tile$year == 2017 & df_tile$month %in% c("Oct", "Nov", "Dec")] <- NA
-#September, April, June, and November have 30 days
-months_30 <- c("Sep", "Apr", "Jun", "Nov")
-df_tile$n[df_tile$month %in% months_30 & df_tile$mday == 31] <- NA
+df_tile$n[df_tile$date > cutoff | is.na(df_tile$date)] <- NA
 
 df_tile %>% 
   ggplot(aes(mday, month, fill = n)) +
   geom_tile() +
-  facet_wrap(~year, ncol = 2) +
+  facet_wrap(~year, ncol = 4) +
   scale_fill_viridis("Number of fatal overdoses") +
   coord_equal() +
   scale_x_continuous(expand = c(0,0)) +
   scale_y_discrete(expand = c(0,0),
                    limits = rev(levels(df$month))) +
   labs(y = NULL,
-       x = "Day of the month")
+       x = "Day of the month") +
+  theme(axis.text.y = element_text(size = 5))
 ```
 
 #over time, what % of heroin ODs contained fentanyl
