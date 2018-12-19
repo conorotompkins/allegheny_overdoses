@@ -3,6 +3,7 @@ title: "OD factor network"
 author: "Conor Tompkins"
 date: "December 15, 2018"
 output: html_document
+runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
@@ -47,6 +48,7 @@ test
 
 
 ```{r}
+#not adding properly
 df %>% 
   arrange(id) %>% 
   select(id, od_factors) %>% 
@@ -54,6 +56,15 @@ df %>%
   mutate(word = case_when(str_detect(word, "fentanyl") ~ "fentanyl",
                           !str_detect(word, "fentanyl") ~ word)) %>% 
   pairwise_count(word, id, sort = TRUE, diag = FALSE) -> word_pairs
+
+
+#word_pairs %>% 
+#  mutate(key1 = str_c(item1, item2, sep = ", "),
+#         key2 = str_c(item2, item1, sep = ", "),
+###         key_lag = lag(key2)) %>% 
+#  group_by(key2) %>% 
+#  summarize(n = sum(n)) %>% 
+#  arrange(desc(n))
 
 set.seed(1234)
 
@@ -199,7 +210,7 @@ test %>%
   filter(`2016` > 5,
          `2017` > 5) %>% 
   ggplot(aes(`2016`, `2017`, label = combo, size = `2016` + `2017`)) +
-  #geom_point() +
+  geom_point() +
   geom_label_repel() +
   geom_abline()
 
