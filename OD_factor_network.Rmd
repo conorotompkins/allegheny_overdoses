@@ -53,15 +53,30 @@ df %>%
   arrange(id) %>% 
   select(id, od_factors) %>% 
   unnest_tokens(word, od_factors, token = stringr::str_split, pattern = ", ") %>% 
+  arrange(id, word) %>% 
   mutate(word = case_when(str_detect(word, "fentanyl") ~ "fentanyl",
                           !str_detect(word, "fentanyl") ~ word)) %>% 
   pairwise_count(word, id, sort = TRUE, diag = FALSE) -> word_pairs
 
+word_pairs
+
+#word_pairs %>% 
+#  group_by(item1, item2) %>% 
+#  mutate(item1_lag = lag(item1),
+#         item2_lag = lag(item2)) %>% 
+#  mutate(item1_lag = case_when(is.na(item1_lag) ~ item1,
+#                               !is.na(item1_lag) ~ item1_lag),
+#         item2_lag = case_when(is.na(item2_lag) ~ item2,
+#                               !is.na(item2_lag) ~ item2_lag),
+#         flag = case_when(item1_lag == item1 & item2_lag == item2 ~ TRUE,
+#                          item1_lag != item1 | item2_lag != item2 ~ FALSE)) %>% 
+#  View()
+
+
 
 #word_pairs %>% 
 #  mutate(key1 = str_c(item1, item2, sep = ", "),
-#         key2 = str_c(item2, item1, sep = ", "),
-###         key_lag = lag(key2)) %>% 
+#         key2 = str_c(item2, item1, sep = ", "))
 #  group_by(key2) %>% 
 #  summarize(n = sum(n)) %>% 
 #  arrange(desc(n))
