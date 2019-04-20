@@ -1,0 +1,177 @@
+---
+title: "Presentation"
+author: "Conor Tompkins"
+date: "April 20, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(viridis)
+library(ggrepel)
+library(knitr)
+library(kableExtra)
+
+#use a customized version of theme_bw()
+theme_set(theme_bw(base_size = 18))
+```
+
+#Identifying Trends in Overdoses in Allegheny County
+
+```{r}
+source("https://raw.githubusercontent.com/conorotompkins/allegheny_overdoses/master/scripts/load_data.R")
+```
+
+```{r}
+df %>% 
+  count(date) %>% 
+  mutate(n_cumsum = cumsum(n)) %>% 
+  ggplot(aes(date, n_cumsum)) +
+  geom_hline(yintercept = 0) +
+  geom_line(size = 2) +
+  scale_y_continuous(label=comma) +
+  labs(title = "Fatal overdoses in Allegheny County",
+       y = "Cumulative sum of fatal overdoses",
+       x = "",
+       subtitle = "Data from the WPRDC",
+       caption = "Conor Tompkins @conor_tompkins")
+```
+
+```{r}
+df %>% 
+  group_by(year, yday) %>% 
+  summarize(n = n()) %>% 
+  mutate(n_cumsum = cumsum(n)) -> df_year_cumsum
+
+df %>% 
+  group_by(year) %>% 
+  summarize(last_yday = last(yday),
+            total = n()) -> df_year_tag
+
+ggplot(data = df_year_cumsum, aes(x = yday, y = n_cumsum, color = as.factor(year))) +
+  geom_line(size = 1.5) +
+  geom_label_repel(data = df_year_tag, 
+                   aes(x = last_yday, y = total, label = year, color = as.factor(year), group = year),
+                   nudge_x = 1) +
+  geom_point(data = df_year_tag, 
+             aes(x = last_yday, y = total, color = as.factor(year), group = as.factor(year)), size = 3) +
+  scale_size_continuous(guide = FALSE) +
+  scale_color_discrete(guide = FALSE) +
+  labs(title = "Fatal overdoses by year",
+       x = "Day of the year",
+       y = "Cumulative sum of fatal overdoses",
+       subtitle = "Data from the WPRDC",
+       caption = "Conor Tompkins @conor_tompkins")
+```
+
+```{r}
+#create df of full calendar
+df_dates <- tibble(date = seq(first(df$date), last(df$date), by = "day"))
+
+#create tile df
+df %>% 
+  mutate(n = 1) %>% 
+  right_join(df_dates) %>% 
+  mutate(year = year(date),
+         month = month(date, label = TRUE),
+         mday = mday(date)) %>% 
+  group_by(year, month, mday) %>% 
+  summarize(n = sum(n)) %>% 
+  replace_na(list(n = 0)) -> df_tile
+
+df_tile %>% 
+  ggplot(aes(mday, month, fill = n)) +
+  geom_tile() +
+  facet_wrap(~year, ncol = 2) +
+  scale_fill_viridis("Number of fatal overdoses") +
+  coord_equal() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_discrete(expand = c(0,0),
+                   limits = rev(levels(df$month)),
+                   breaks = c("Jan", "Apr", "Jul", "Oct")) +
+  labs(title = "Fatal overdoses in Allegheny County",
+       y = NULL,
+       x = "Day of the month",
+       subtitle = "Data from the WPRDC",
+       caption = "Conor Tompkins @conor_tompkins") +
+  theme(panel.grid = element_blank(),
+        axis.text.y = element_text(size = 8))
+```
+
+```{r}
+df_factors <- df %>% 
+  mutate(od_fentanyl = str_detect(od_factors, "FENTAN"),
+         od_heroin = str_detect(od_factors, "HEROIN"),
+         od_cocaine = str_detect(od_factors, "COCAIN"),
+         od_alcohol = str_detect(od_factors, "ALCOHO"),
+         od_alprazolam = str_detect(od_factors, "ALPRAZ"),
+         od_oxycodone = str_detect(od_factors, "OXYCOD"),
+         od_methadone = str_detect(od_factors, "METHAD"),
+         od_clonazepam = str_detect(od_factors, "CLONA"),
+         od_morphine = str_detect(od_factors, "MORPHI"),
+         od_diazepam = str_detect(od_factors, "DIAZEP")) %>% 
+  select(date, starts_with("od_"))
+
+
+df_factors_long <- df_factors %>% 
+  gather(od_factor, od_flag, starts_with("od_")) %>% 
+  filter(od_flag == TRUE) %>% 
+  mutate(od_factor = str_to_title(str_replace(od_factor, "od_", "")))
+
+#create od_factor df
+df_factors_cumsum <- df_factors_long %>% 
+  group_by(od_factor, date) %>% 
+  summarize(n = n()) %>% 
+  ungroup() %>% 
+  group_by(od_factor) %>% 
+  mutate(od_cumsum = cumsum(n))
+
+#create label df for od_factors
+df_factors_cumsum_label <- df_factors_long %>% 
+  group_by(od_factor) %>% 
+  summarize(last_date = last(date),
+            total = n())
+
+#plot cumulative od_factor
+ggplot(data = df_factors_cumsum, aes(x = date, y = od_cumsum, color = od_factor)) +
+  geom_line(size = 1.5) +
+  geom_label_repel(data = df_factors_cumsum_label, 
+                   aes(x = last_date, y = total, label = od_factor, group = od_factor),
+                   direction = "x", hjust = 1) +
+  geom_point(data = df_factors_cumsum_label, 
+             aes(x = last_date, y = total, group = od_factor, color = od_factor), size = 3) +
+  scale_color_discrete(guide = FALSE) +
+  scale_y_continuous(expand = c(.01, .1), label = comma) +
+  labs(title = "Fatal overdoses by drug factor",
+       y = "Cumulative sum of fatal overdoses",
+       x = "",
+       subtitle = "Data from the WPRDC",
+       caption = "Conor Tompkins @conor_tompkins \n Drug overdoses not exclusive")
+```
+
+```{r message=TRUE, warning=TRUE, paged.print=TRUE}
+df_factors_fentanyl <- df_factors %>% 
+  #select(date, od_heroin, od_fentanyl) %>% 
+  #filter(od_fentanyl) %>% 
+  group_by(date) %>% 
+  summarize(percent_fentanyl = mean(od_fentanyl))
+
+df_factors_fentanyl %>% 
+  ggplot(aes(date, percent_fentanyl)) +
+  geom_point(alpha = .1) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial")) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(title = "Fatal heroin overdoses involving fentanyl",
+       x = "",
+       y = "% involving fentantyl",
+       subtitle = "Data from the WPRDC",
+       caption = "Conor Tompkins @conor_tompkins")
+```
