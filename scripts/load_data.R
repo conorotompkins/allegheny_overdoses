@@ -7,7 +7,7 @@ data <- read_csv(url, progress = FALSE)
 
 glimpse(data)
 
-data %>%
+df <- data %>%
   clean_names() %>% 
   mutate_at(vars(contains("combined")), as.character) %>% 
   mutate(id = row_number(),
@@ -23,7 +23,8 @@ data %>%
          decedent_zip = as.character(decedent_zip)) %>% 
   select(-death_date_and_time, year = case_year) %>% 
   arrange(date) %>% 
-  select(id, date, year, yday, month, mday, week, wday, hour, everything()) -> df
+  select(id, date, year, yday, month, mday, week, wday, hour, everything()) %>% 
+  drop_na(date)
 
 glimpse(df)
 
