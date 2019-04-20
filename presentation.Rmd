@@ -36,6 +36,15 @@ theme_set(theme_bw(base_size = 18))
 
 ```{r}
 source("https://raw.githubusercontent.com/conorotompkins/allegheny_overdoses/master/scripts/load_data.R")
+df <- df %>% 
+  mutate(sex = case_when(sex == "M" ~ "Male",
+                         sex == "F" ~ "Female"),
+         ethnicity = case_when(race == "W" ~ "White",
+                          race == "B" ~ "Black",
+                          race == "H" ~ "Hispanic",
+                          !(race %in% c("W", "B", "H")) ~ "Other ethnicity"),
+         sex_ethnicity = str_c(sex, ethnicity, sep = ", ")) %>% 
+  select(id:sex, ethnicity, sex_ethnicity, case_dispo, incident_zip, decedent_zip, everything(), -race)
 ```
 
 #Time series
@@ -282,16 +291,8 @@ df_geo_od %>%
 #Demographics
 ```{r}
 df_demo <- df %>% 
-  select(id, date, year, age, sex, race) %>%
-  na.omit() %>% 
-  mutate(sex = case_when(sex == "M" ~ "Male",
-                         sex == "F" ~ "Female"),
-         ethnicity = case_when(race == "W" ~ "White",
-                          race == "B" ~ "Black",
-                          race == "H" ~ "Hispanic",
-                          !(race %in% c("W", "B", "H")) ~ "Other ethnicity"),
-         sex_ethnicity = str_c(sex, ethnicity, sep = ", ")) %>% 
-  select(-race)
+  select(id, date, year, age, sex, ethnicity, sex_ethnicity) %>%
+  na.omit()
 ```
 ```{r}
 df_demo %>% 
@@ -345,15 +346,14 @@ df_demo %>%
   count(sex_ethnicity, date) %>% 
   group_by(sex_ethnicity) %>% 
   mutate(cum_sum = cumsum(n)) -> df_demo_cumulative
-```
-```{r}
+
 df_demo %>% 
   filter(ethnicity %in% c("White", "Black")) %>% 
   group_by(sex_ethnicity) %>% 
   summarize(total = n(),
             last_date = last(date)) -> df_demo_cumulative_tag
-```
-```{r}
+
+
 #need to align labels right
 ggplot(data = df_demo_cumulative, aes(x = date, y = cum_sum, color = sex_ethnicity)) +
   geom_line(size = 2) +
@@ -373,44 +373,47 @@ ggplot(data = df_demo_cumulative, aes(x = date, y = cum_sum, color = sex_ethnici
 need to refactor this code
 ```{r}
 #drug factor by category (sex, race)
-df %>% 
-  filter(race %in% c("W", "B")) %>% 
-  mutate(od_heroin = str_detect(od_factors, "Heroin"),
-         od_cocaine = str_detect(od_factors, "Cocaine"),
-         od_fentanyl = str_detect(od_factors, "Fentanyl"),
-         od_alcohol = str_detect(od_factors, "Alcohol"),
-         od_alprazolam = str_detect(od_factors, "Alprazolam"),
-         od_oxycodone = str_detect(od_factors, "Oxycodone"),
-         od_morphine = str_detect(od_factors, "Morphine"),
-         od_methadone = str_detect(od_factors, "Methadone"),
-         od_hydrocodone = str_detect(od_factors, "Hydrocodone"),
-         od_diazepam = str_detect(od_factors, "Diazepam")) -> df_factors
+df_factors <- df %>% 
+  filter(ethnicity %in% c("White", "Black")) %>% 
+  mutate(od_fentanyl = str_detect(od_factors, "FENTAN"),
+         od_heroin = str_detect(od_factors, "HEROIN"),
+         od_cocaine = str_detect(od_factors, "COCAIN"),
+         od_alcohol = str_detect(od_factors, "ALCOHO"),
+         od_alprazolam = str_detect(od_factors, "ALPRAZ"),
+         od_oxycodone = str_detect(od_factors, "OXYCOD"),
+         od_methadone = str_detect(od_factors, "METHAD"),
+         od_clonazepam = str_detect(od_factors, "CLONA"),
+         od_morphine = str_detect(od_factors, "MORPHI"),
+         od_diazepam = str_detect(od_factors, "DIAZEP")) %>% 
+  select(date, sex_ethnicity, starts_with("od_"))
 
 
-df_factors %>%
-  mutate(category = str_c(sex, race, sep = ", ")) %>% 
-  gather(od_factor, od_flag, starts_with("od_"), -category) %>% 
-  filter(od_flag == TRUE) -> df_factors_long
+df_factors_long <- df_factors %>% 
+  gather(od_factor, od_flag, starts_with("od_")) %>% 
+  filter(od_flag == TRUE)
+
+
 
 #create od_factor df
-df_factors_long %>% 
-  group_by(category, od_factor, date) %>% 
+df_factors_cumsum <- df_factors_long %>% 
+  group_by(sex_ethnicity, od_factor, date) %>% 
   summarize(n = n()) %>% 
-  group_by(category, od_factor) %>% 
-  mutate(od_cumsum = cumsum(n)) -> df_factors_cumsum
+  ungroup() %>% 
+  group_by(sex_ethnicity, od_factor) %>% 
+  mutate(od_cumsum = cumsum(n))
 
 #create label df for od_factors
-df_factors_long %>% 
-  group_by(category, od_factor) %>% 
+df_factors_cumsum_label <- df_factors_long %>% 
+  group_by(sex_ethnicity, od_factor) %>% 
   summarize(last_date = last(date),
-            total = n()) -> df_factors_cumsum_label
+            total = n())
 
 #plot cumulative od_factor
 ggplot(data = df_factors_cumsum, aes(x = date, y = od_cumsum, color = od_factor)) +
   geom_line(size = 1.5) +
   geom_label_repel(data = df_factors_cumsum_label, aes(x = last_date, y = total, label = str_replace(od_factor, "od_", ""), group = od_factor)) +
   geom_point(data = df_factors_cumsum_label, aes(x = last_date, y = total, group = od_factor, color = od_factor), size = 3) +
-  facet_wrap(~category) +
+  facet_wrap(~sex_ethnicity) +
   scale_color_discrete(guide = FALSE) +
   scale_y_continuous(expand = c(.01, .1), label = comma) +
   labs(title = NA,
