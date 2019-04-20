@@ -281,35 +281,38 @@ df_geo_od %>%
 
 #Demographics
 ```{r}
-df %>% 
+df_demo <- df %>% 
   select(id, date, year, age, sex, race) %>%
-  filter(date <= "2017-09-01") %>% 
-  mutate(category = str_c(sex, race, sep = ", ")) -> df_demo
+  na.omit() %>% 
+  mutate(sex = case_when(sex == "M" ~ "Male",
+                         sex == "F" ~ "Female"),
+         ethnicity = case_when(race == "W" ~ "White",
+                          race == "B" ~ "Black",
+                          race == "H" ~ "Hispanic",
+                          !(race %in% c("W", "B", "H")) ~ "Other ethnicity"),
+         sex_ethnicity = str_c(sex, ethnicity, sep = ", ")) %>% 
+  select(-race)
 ```
 ```{r}
 df_demo %>% 
-  head() %>% 
-  kable("html") %>% 
-  kable_styling()
+  count(sex, ethnicity, sort = TRUE) %>% 
+  mutate(ethnicity = fct_reorder(ethnicity, n)) %>% 
+  ggplot(aes(ethnicity, n)) +
+  geom_col() +
+  coord_flip() +
+  facet_wrap(~sex)
 ```
 ```{r}
 df_demo %>% 
-  count(race, sort = TRUE) %>% 
-  head() %>% 
-  kable("html") %>% 
-  kable_styling()
-```
-```{r}
-df_demo %>% 
-  filter(race %in% c("W", "B")) %>% 
-  ggplot(aes(age, fill = race)) +
+  filter(ethnicity %in% c("White", "Black")) %>% 
+  ggplot(aes(age, fill = ethnicity)) +
     geom_density(alpha = .75) +
     labs(title = NA,
          subtitle = NA,
          x = "Age",
          y = "",
          caption = NA) +
-    scale_fill_discrete("Race")
+    scale_fill_viridis_d("Ethnicity")
 ```
 ```{r}
 df_demo %>% 
@@ -320,49 +323,45 @@ df_demo %>%
        x = "Age",
        y = "",
        caption = NA) +
-  scale_fill_discrete("Sex")
+  scale_fill_viridis_d("Sex")
 ```
 ```{r}
 df_demo %>% 
-  count(category, sort = TRUE) %>% 
-  head() %>% 
-  kable("html") %>% 
-  kable_styling()
-```
-```{r}
-df_demo %>% 
-  filter(race %in% c("W", "B")) %>% 
-  ggplot(aes(age, fill = category)) +
+  filter(ethnicity %in% c("White", "Black")) %>% 
+  ggplot(aes(age, fill = sex_ethnicity)) +
   geom_density(alpha = .5) +
-  facet_wrap(~category, ncol = 1) +
+  facet_wrap(~sex_ethnicity, ncol = 2) +
   labs(title = NA,
        subtitle = NA,
        x = "Age",
        y = "",
        caption = NA) +
-  scale_fill_discrete("")
+  scale_fill_viridis_d("")
 ```
 ```{r}
 df_demo %>% 
-  filter(race %in% c("W", "B")) %>% 
-  arrange(category, date) %>% 
-  count(category, date) %>% 
-  group_by(category) %>% 
+  filter(ethnicity %in% c("White", "Black")) %>% 
+  arrange(sex_ethnicity, date) %>% 
+  count(sex_ethnicity, date) %>% 
+  group_by(sex_ethnicity) %>% 
   mutate(cum_sum = cumsum(n)) -> df_demo_cumulative
 ```
 ```{r}
 df_demo %>% 
-  filter(race %in% c("W", "B")) %>% 
-  group_by(category) %>% 
+  filter(ethnicity %in% c("White", "Black")) %>% 
+  group_by(sex_ethnicity) %>% 
   summarize(total = n(),
             last_date = last(date)) -> df_demo_cumulative_tag
 ```
 ```{r}
-ggplot(data = df_demo_cumulative, aes(x = date, y = cum_sum, color = category)) +
+#need to align labels right
+ggplot(data = df_demo_cumulative, aes(x = date, y = cum_sum, color = sex_ethnicity)) +
   geom_line(size = 2) +
-  geom_point(data = df_demo_cumulative_tag, aes(x = last_date, y = total), size = 3) +
-  geom_label_repel(data = df_demo_cumulative_tag, aes(x = last_date, y = total, color = category, label = category),
-                   nudge_x = 3) +
+  geom_point(data = df_demo_cumulative_tag, 
+             aes(x = last_date, y = total), size = 3) +
+  geom_label_repel(data = df_demo_cumulative_tag, 
+                   aes(x = last_date, y = total, color = sex_ethnicity, label = sex_ethnicity),
+                  direction = "x", nudge_x = 3) +
   scale_y_continuous(label = comma) +
   scale_color_discrete(guide = FALSE) +
   labs(title = NA,
