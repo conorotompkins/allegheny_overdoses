@@ -36,7 +36,7 @@ theme_set(theme_bw(base_size = 18))
 ```
 
 #Identifying Trends in Overdoses in Allegheny County
-```{r}
+```{r include=FALSE}
 source("https://raw.githubusercontent.com/conorotompkins/allegheny_overdoses/master/scripts/load_data.R")
 df <- df %>% 
   mutate(sex = case_when(sex == "M" ~ "Male",
@@ -65,6 +65,7 @@ Recommendations
 #Trends
 
 While overdoses steadily increased from 2008-2015, the epidemic hit in 2016. The inflection in overdoses clearly indicates that something in the environment changed in early 2016.
+
 ```{r}
 df %>% 
   count(date) %>% 
@@ -79,6 +80,7 @@ df %>%
 ```
 
 The years 2016-2018 are clearly of a different class compared to the previous years. 2019 appears to have many fewer overdoses, but it is too early to make a good prediction.
+
 ```{r}
 df %>% 
   group_by(year, yday) %>% 
@@ -105,6 +107,7 @@ ggplot(data = df_year_cumsum, aes(x = yday, y = n_cumsum, color = as.factor(year
        y = "Cumulative sum of fatal overdoses")
 ```
 The overdoses do not occur in steady waves. They occur in spikes, which could be caused by changes in the drugs that are sold on the street.
+
 ```{r}
 #create df of full calendar
 df_dates <- tibble(date = seq(first(df$date), last(df$date), by = "day"))
@@ -139,6 +142,7 @@ df_tile %>%
 
 #Drug factor
 There was an overall increase in the number of overdoses across the top-10 drugs post-2016. However, heroin and fentanyl appear to be the major drivers. Cocaine was previoulsy the most common drug involved in overdoses, but it was surpassed by heroin in 2012. In turn, heroin was surpassed by fentanyl in 2016. This reflects significant changes in the drugs that are sold on the street.
+
 ```{r}
 df_factors <- df %>% 
   mutate(od_fentanyl = str_detect(od_factors, "FENTAN"),
@@ -189,6 +193,7 @@ ggplot(data = df_factors_cumsum, aes(x = date, y = od_cumsum, color = od_factor)
        caption = "Drug overdoses not exclusive")
 ```
 Fentanyl exploded onto the scene, and is now involved in over half of all overdoses.
+
 ```{r message=FALSE, warning=FALSE, paged.print=TRUE}
 df_factors_fentanyl <- df_factors %>% 
   #select(date, od_heroin, od_fentanyl) %>% 
@@ -208,6 +213,7 @@ df_factors_fentanyl %>%
 ```
 
 #Demographics
+
 ```{r}
 df_demo <- df %>% 
   select(id, date, year, age, sex, ethnicity, sex_ethnicity) %>%
@@ -215,6 +221,7 @@ df_demo <- df %>%
 ```
 
 White men are the population that suffers the most from drug overdoses.
+
 ```{r}
 df_demo %>% 
   count(sex, ethnicity, sort = TRUE) %>% 
@@ -230,6 +237,7 @@ df_demo %>%
 ```
 
 The differences in overdose rates across ethnicity and age show that policymakers will need to use different intervention techniques for different populations.
+
 ```{r}
 df_demo %>% 
   filter(ethnicity %in% c("White", "Black")) %>% 
@@ -244,6 +252,7 @@ df_demo %>%
 ```
 
 Men and women share largely similar age profiles.
+
 ```{r}
 df_demo %>% 
   ggplot(aes(age, fill = sex)) +
@@ -257,6 +266,8 @@ df_demo %>%
 ```
 
 #Geographic
+
+
 ```{r}
 df_zip <- df %>% 
   select(date, year, month, incident_zip) %>% 
@@ -311,6 +322,8 @@ allegheny_water <- area_water("PA", "Allegheny", class = "sf")
 df_geo_zip <- st_erase(df_geo_zip, allegheny_water)
 ```
 
+Overdoses are not uniformly geographically distributed. Areas close to the center of Pittsburgh are affected, but many outlying communities also see disproportionate overdose rates.
+
 ```{r}
 df_geo_zip <- df_geo_zip %>% 
   semi_join(pa_zipcodes, by = c("GEOID" = "zip"))
@@ -341,11 +354,13 @@ df_geo_zip %>%
         axis.text = element_blank())
 ```
 Small communities can be devastated, but larger population centers are also damaged by the epidemic.
+
 ```{r}
 df_geo_zip %>%
   ggplot(aes(estimate, od_per_capita)) +
   geom_point(alpha = .5) +
   geom_smooth() +
+  scale_y_continuous(limits = c(0, 15)) +
   labs(x = "Population",
        y = "Overdose per 1,000 population")
 ```
