@@ -2,7 +2,9 @@
 title: "Presentation"
 author: "Conor Tompkins"
 date: "April 20, 2019"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -23,6 +25,7 @@ library(tidycensus)
 library(sf)
 library(tigris)
 library(noncensus)
+library(ggthemes)
 
 options(tigris_use_cache = TRUE)
 my_census_key <- "a16f3636406d2b544871e2ae49bb318c3ddcacba"
@@ -33,7 +36,7 @@ theme_set(theme_bw(base_size = 18))
 ```
 
 #Identifying Trends in Overdoses in Allegheny County
-```{r echo = FALSE, message=FALSE, warning=FALSE}
+```{r}
 source("https://raw.githubusercontent.com/conorotompkins/allegheny_overdoses/master/scripts/load_data.R")
 df <- df %>% 
   mutate(sex = case_when(sex == "M" ~ "Male",
@@ -45,13 +48,23 @@ df <- df %>%
          sex_ethnicity = str_c(sex, ethnicity, sep = ", ")) %>% 
   select(id:sex, ethnicity, sex_ethnicity, case_dispo, incident_zip, decedent_zip, everything(), -race)
 ```
+Opiate addiction and overdose have become a major problem in American society. The life expectancy in the U.S. has been decreasing for the past 2 years, and deaths from drug overdoses has risen rapidly. Communities have been flooded with prescription painkillers with deadly effects.
+
+Pennsylvania and the Pittsburgh area have also suffered from drug overdoses. 38 out of every 100,000 Pennsylvanians died from a drug overdose in 2017.
+
+The Western Pennsylvania Regional Data Center has published data on accidental fatal overdoses in Allegheny County. The data spans from 2008 to present day, with a few months of delay on the most recent data due to the time required to collect and process the data.
+
+Using this data, I will identify when the epidemic hit Allegheny County, what drugs are driving it, and which communities have been hit hardest. Finally, I will make recommendations.
+
 
 Frame the problem
 Why have ODs increased
 Trends in who
 Recommendations
 
-#Time series
+#Trends
+
+While overdoses steadily increased from 2008-2015, the epidemic hit in 2016. The inflection in overdoses clearly indicates that something in the environment changed in early 2016.
 ```{r}
 df %>% 
   count(date) %>% 
@@ -65,6 +78,7 @@ df %>%
        x = NULL)
 ```
 
+The years 2016-2018 are clearly of a different class compared to the previous years. 2019 appears to have many fewer overdoses, but it is too early to make a good prediction.
 ```{r}
 df %>% 
   group_by(year, yday) %>% 
@@ -89,7 +103,7 @@ ggplot(data = df_year_cumsum, aes(x = yday, y = n_cumsum, color = as.factor(year
        x = "Day of the year",
        y = "Cumulative sum of fatal overdoses")
 ```
-
+The overdoses do not occur in steady waves. They occur in spikes, which could be caused by changes in the drugs that are sold on the street.
 ```{r}
 #create df of full calendar
 df_dates <- tibble(date = seq(first(df$date), last(df$date), by = "day"))
@@ -125,6 +139,7 @@ df_tile %>%
 ```
 
 #Drug factor
+There was an overall increase in the number of overdoses across the top-10 drugs post-2016. However, heroin and fentanyl appear to be the major drivers. Cocaine was previoulsy the most common drug involved in overdoses, but it was surpassed by heroin in 2012. In turn, heroin was surpassed by fentanyl in 2016. This reflects significant changes in the drugs that are sold on the street.
 ```{r}
 df_factors <- df %>% 
   mutate(od_fentanyl = str_detect(od_factors, "FENTAN"),
@@ -175,7 +190,7 @@ ggplot(data = df_factors_cumsum, aes(x = date, y = od_cumsum, color = od_factor)
        subtitle = "Data from the WPRDC",
        caption = "Conor Tompkins @conor_tompkins \n Drug overdoses not exclusive")
 ```
-
+Fentanyl exploded onto the scene, and is now involved in over half of all overdoses.
 ```{r message=FALSE, warning=FALSE, paged.print=TRUE}
 df_factors_fentanyl <- df_factors %>% 
   #select(date, od_heroin, od_fentanyl) %>% 
@@ -191,8 +206,52 @@ df_factors_fentanyl %>%
   labs(title = "Fatal overdoses involving fentanyl",
        x = "",
        y = "% involving fentantyl",
-       subtitle = "Data from the WPRDC",
-       caption = "Conor Tompkins @conor_tompkins")
+       subtitle = "Line indicates logistic regression")
+```
+
+#Demographics
+```{r}
+df_demo <- df %>% 
+  select(id, date, year, age, sex, ethnicity, sex_ethnicity) %>%
+  na.omit()
+```
+
+White men are the population that suffers the most from drug overdoses.
+```{r}
+df_demo %>% 
+  count(sex, ethnicity, sort = TRUE) %>% 
+  mutate(ethnicity = fct_reorder(ethnicity, n)) %>% 
+  ggplot(aes(ethnicity, n)) +
+  geom_col() +
+  coord_flip() +
+  facet_wrap(~sex)
+```
+
+The differences in overdose rates across ethnicity and age show that policymakers will need to use different intervention techniques for different populations.
+```{r}
+df_demo %>% 
+  filter(ethnicity %in% c("White", "Black")) %>% 
+  ggplot(aes(age, fill = ethnicity)) +
+    geom_density(alpha = .75) +
+    labs(title = NA,
+         subtitle = NA,
+         x = "Age",
+         y = "",
+         caption = NA) +
+    scale_fill_viridis_d("Ethnicity")
+```
+
+Men and women share largely similar age profiles.
+```{r}
+df_demo %>% 
+  ggplot(aes(age, fill = sex)) +
+  geom_density(alpha = .75) +
+  labs(title = NA,
+       subtitle = NA,
+       x = "Age",
+       y = "",
+       caption = NA) +
+  scale_fill_viridis_d("Sex")
 ```
 
 #Geographic
@@ -257,62 +316,34 @@ df_geo_zip <- df_geo_zip %>%
 df_geo_zip <- df_geo_zip %>% 
   left_join(df_zip, by = c("GEOID" = "incident_zip")) %>% 
   replace_na(list(n = 0)) %>% 
-  mutate(od_per_capita = (n / estimate) * 1000,
-         od_per_capita = case_when(estimate <= 400 ~ 0,
-                                   estimate > 499 ~ od_per_capita))
+  mutate(od_per_capita = (n / estimate) * 1000)
 
 threshhold <- 400
 df_geo_zip %>% 
+  mutate(od_per_capita = case_when(estimate <= 400 ~ 0,
+                                   estimate > 400 ~ od_per_capita)) %>% 
   ggplot() +
   geom_sf(aes(fill = od_per_capita), color = NA) +
-  geom_sf(data = df_geo_county, color = "red", size = 1, alpha = 0) +
-  scale_fill_viridis_c("Overdoses per 1,000", option = "B") +
+  geom_sf(data = df_geo_county, color = "white", size = .5, linetype = 2, alpha = 0) +
+  scale_fill_viridis_c("Overdoses per 1,000 population", option = "B") +
   scale_alpha_continuous(range = c(.5, 1)) +
   coord_sf(xlim = c(-79.6, -80.4), ylim = c(40.2, 40.7)) +
   labs(title = "Allegheny County Fatal Overdoses",
-       subtitle = str_c("Zip codes with < ", threshhold, " population set to 0", "\nPopulation based on 2012-2016 ACS"),
-       caption = "@conor_tompkins, data from WPRDC") +
-  theme(axis.text = element_blank(),
-        plot.background = element_rect(color = "black"))
+       subtitle = "Population based on 2012-2016 American Community Survey",
+       caption = str_c("Zip codes with < ", threshhold, " population set to 0")) +
+  theme_minimal() +
+  theme(#axis.text = element_blank(),
+        #panel.background = element_rect(color = "black"),
+        legend.position="bottom",
+        legend.direction = "horizontal",
+        axis.text = element_blank())
+```
+Small communities can be devastated, but larger population centers are also damaged by the epidemic.
+```{r}
+df_geo_zip %>%
+  ggplot(aes(estimate, od_per_capita)) +
+  geom_point(alpha = .5) +
+  geom_smooth()
 ```
 
-#Demographics
-```{r}
-df_demo <- df %>% 
-  select(id, date, year, age, sex, ethnicity, sex_ethnicity) %>%
-  na.omit()
-```
-```{r}
-df_demo %>% 
-  count(sex, ethnicity, sort = TRUE) %>% 
-  mutate(ethnicity = fct_reorder(ethnicity, n)) %>% 
-  ggplot(aes(ethnicity, n)) +
-  geom_col() +
-  coord_flip() +
-  facet_wrap(~sex)
-```
-need different intervention techniques for different population
-```{r}
-df_demo %>% 
-  filter(ethnicity %in% c("White", "Black")) %>% 
-  ggplot(aes(age, fill = ethnicity)) +
-    geom_density(alpha = .75) +
-    labs(title = NA,
-         subtitle = NA,
-         x = "Age",
-         y = "",
-         caption = NA) +
-    scale_fill_viridis_d("Ethnicity")
-```
-```{r}
-df_demo %>% 
-  ggplot(aes(age, fill = sex)) +
-  geom_density(alpha = .75) +
-  labs(title = NA,
-       subtitle = NA,
-       x = "Age",
-       y = "",
-       caption = NA) +
-  scale_fill_viridis_d("Sex")
-```
 #Recommendations
