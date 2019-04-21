@@ -94,11 +94,12 @@ ggplot(data = df_year_cumsum, aes(x = yday, y = n_cumsum, color = as.factor(year
   geom_line(size = 1.5) +
   geom_label_repel(data = df_year_tag, 
                    aes(x = last_yday, y = total, label = year, color = as.factor(year), group = year),
-                   nudge_x = 1) +
+                   direction = "x", nudge_x = 1) +
   geom_point(data = df_year_tag, 
              aes(x = last_yday, y = total, color = as.factor(year), group = as.factor(year)), size = 3) +
   scale_size_continuous(guide = FALSE) +
   scale_color_discrete(guide = FALSE) +
+  scale_y_continuous(label = comma) +
   labs(title = "Fatal overdoses by year",
        x = "Day of the year",
        y = "Cumulative sum of fatal overdoses")
@@ -131,9 +132,7 @@ df_tile %>%
                    breaks = c("Jan", "Apr", "Jul", "Oct")) +
   labs(title = "Fatal overdoses in Allegheny County",
        y = NULL,
-       x = "Day of the month",
-       subtitle = "Data from the WPRDC",
-       caption = "Conor Tompkins @conor_tompkins") +
+       x = "Day of the month") +
   theme(panel.grid = element_blank(),
         axis.text.y = element_text(size = 8))
 ```
@@ -187,8 +186,7 @@ ggplot(data = df_factors_cumsum, aes(x = date, y = od_cumsum, color = od_factor)
   labs(title = "Fatal overdoses by drug factor",
        y = "Cumulative sum of fatal overdoses",
        x = "",
-       subtitle = "Data from the WPRDC",
-       caption = "Conor Tompkins @conor_tompkins \n Drug overdoses not exclusive")
+       caption = "Drug overdoses not exclusive")
 ```
 Fentanyl exploded onto the scene, and is now involved in over half of all overdoses.
 ```{r message=FALSE, warning=FALSE, paged.print=TRUE}
@@ -206,7 +204,7 @@ df_factors_fentanyl %>%
   labs(title = "Fatal overdoses involving fentanyl",
        x = "",
        y = "% involving fentantyl",
-       subtitle = "Line indicates logistic regression")
+       caption = "Blue line indicates logistic regression")
 ```
 
 #Demographics
@@ -224,7 +222,11 @@ df_demo %>%
   ggplot(aes(ethnicity, n)) +
   geom_col() +
   coord_flip() +
-  facet_wrap(~sex)
+  facet_wrap(~sex) +
+  scale_y_continuous(label = comma) +
+  labs(x = NULL,
+       y = "Number of overdoses") +
+  theme(panel.grid.minor = element_blank())
 ```
 
 The differences in overdose rates across ethnicity and age show that policymakers will need to use different intervention techniques for different populations.
@@ -233,12 +235,12 @@ df_demo %>%
   filter(ethnicity %in% c("White", "Black")) %>% 
   ggplot(aes(age, fill = ethnicity)) +
     geom_density(alpha = .75) +
-    labs(title = NA,
-         subtitle = NA,
-         x = "Age",
-         y = "",
-         caption = NA) +
-    scale_fill_viridis_d("Ethnicity")
+    labs(title = "Overdose age profile by ethnicity",
+       x = "Age",
+       y = NULL) +
+    scale_fill_viridis_d("") +
+    scale_y_continuous(expand = c(0,0))
+    theme(axis.text.y = element_blank())
 ```
 
 Men and women share largely similar age profiles.
@@ -246,19 +248,19 @@ Men and women share largely similar age profiles.
 df_demo %>% 
   ggplot(aes(age, fill = sex)) +
   geom_density(alpha = .75) +
-  labs(title = NA,
-       subtitle = NA,
+  labs(title = "Overdose age profile by sex",
        x = "Age",
-       y = "",
-       caption = NA) +
-  scale_fill_viridis_d("Sex")
+       y = NULL) +
+  scale_fill_viridis_d("") +
+  scale_y_continuous(expand = c(0,0)) +
+  theme(axis.text.y = element_blank())
 ```
 
 #Geographic
 ```{r}
 df_zip <- df %>% 
   select(date, year, month, incident_zip) %>% 
-  filter(year >= 2015) %>%
+  #filter(year >= 2015) %>%
   mutate(incident_zip = str_sub(incident_zip, 1, 5)) %>% 
   drop_na(incident_zip) %>% 
   filter(incident_zip != "1`513", incident_zip != "15-71") %>% 
@@ -329,8 +331,8 @@ df_geo_zip %>%
   scale_alpha_continuous(range = c(.5, 1)) +
   coord_sf(xlim = c(-79.6, -80.4), ylim = c(40.2, 40.7)) +
   labs(title = "Allegheny County Fatal Overdoses",
-       subtitle = "Population based on 2012-2016 American Community Survey",
-       caption = str_c("Zip codes with < ", threshhold, " population set to 0")) +
+       subtitle = "2008 to present",
+       caption = str_c("Zip codes with < ", threshhold, " population set to 0 \n Population based on 2012-2016 American Community Survey")) +
   theme_minimal() +
   theme(#axis.text = element_blank(),
         #panel.background = element_rect(color = "black"),
@@ -343,7 +345,9 @@ Small communities can be devastated, but larger population centers are also dama
 df_geo_zip %>%
   ggplot(aes(estimate, od_per_capita)) +
   geom_point(alpha = .5) +
-  geom_smooth()
+  geom_smooth() +
+  labs(x = "Population",
+       y = "Overdose per 1,000 population")
 ```
 
 #Recommendations
