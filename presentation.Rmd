@@ -58,9 +58,7 @@ df %>%
   scale_y_continuous(label=comma) +
   labs(title = "Fatal overdoses in Allegheny County",
        y = "Cumulative sum of fatal overdoses",
-       x = "",
-       subtitle = "Data from the WPRDC",
-       caption = "Conor Tompkins @conor_tompkins")
+       x = NULL)
 ```
 
 ```{r}
@@ -85,9 +83,7 @@ ggplot(data = df_year_cumsum, aes(x = yday, y = n_cumsum, color = as.factor(year
   scale_color_discrete(guide = FALSE) +
   labs(title = "Fatal overdoses by year",
        x = "Day of the year",
-       y = "Cumulative sum of fatal overdoses",
-       subtitle = "Data from the WPRDC",
-       caption = "Conor Tompkins @conor_tompkins")
+       y = "Cumulative sum of fatal overdoses")
 ```
 
 ```{r}
@@ -185,10 +181,10 @@ df_factors_fentanyl <- df_factors %>%
 
 df_factors_fentanyl %>% 
   ggplot(aes(date, percent_fentanyl)) +
-  geom_point(alpha = .1) +
+  geom_point(alpha = .05) +
   geom_smooth(method = "glm", method.args = list(family = "binomial")) +
   scale_y_continuous(labels = scales::percent) +
-  labs(title = "Fatal heroin overdoses involving fentanyl",
+  labs(title = "Fatal overdoses involving fentanyl",
        x = "",
        y = "% involving fentantyl",
        subtitle = "Data from the WPRDC",
@@ -199,6 +195,7 @@ df_factors_fentanyl %>%
 ```{r}
 df_zip <- df %>% 
   select(date, year, month, incident_zip) %>% 
+  mutate(incident_zip = str_sub(incident_zip, 1, 5)) %>% 
   drop_na(incident_zip)
 
 df_ods_zip <- df_zip %>% 
@@ -218,11 +215,11 @@ pa_fips <- counties %>%
                             "Beaver County", "Armstrong County")) %>% 
   mutate(fips = str_c(state_fips, county_fips))
 
-zip_codes %>% 
-  mutate(fips = as.character(fips)) -> zip_codes
+zip_codes <- zip_codes %>% 
+  mutate(fips = as.character(fips))
 
-zip_codes %>% 
-  semi_join(pa_fips) -> pa_zipcodes
+pa_zipcodes <- zip_codes %>% 
+  semi_join(pa_fips)
 ```
 
 ```{r}
@@ -272,13 +269,13 @@ threshhold <- 400
 df_geo_od %>%
   mutate(od_per_capita = case_when(estimate <= threshhold ~ 0,
                                    estimate > threshhold ~ od_per_capita)) %>% 
-  filter(year >= 2015) %>%
+  #filter(year >= 2015) %>%
   na.omit() %>% 
   group_by(GEOID) %>% 
   summarize(od_per_capita = sum(od_per_capita)) %>% 
   ggplot() +
-  geom_sf(aes(fill = od_per_capita), size = .1, color = "grey") +
-  geom_sf(data = df_geo_county, color = "red", size = 1, linetype = 1, alpha = 0) +
+  geom_sf(aes(fill = od_per_capita), color = NA) +
+  geom_sf(data = df_geo_county, color = "red", size = 1) +
   scale_fill_viridis_c("Overdoses per 1,000", option = "B") +
   scale_alpha_continuous(range = c(.5, 1)) +
   coord_sf(xlim = c(-79.6, -80.4), ylim = c(40.2, 40.7)) +
