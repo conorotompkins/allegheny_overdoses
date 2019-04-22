@@ -47,6 +47,35 @@ df <- df %>%
                           !(race %in% c("W", "B", "H")) ~ "Other ethnicity"),
          sex_ethnicity = str_c(sex, ethnicity, sep = ", ")) %>% 
   select(id:sex, ethnicity, sex_ethnicity, case_dispo, incident_zip, decedent_zip, everything(), -race)
+
+data(zip_codes)
+data("counties")
+
+#pa_fips <- counties %>% 
+#  filter(state == "PA",
+#         county_name %in% c("Allegheny County", "Washington County", 
+#                            "Butler County", "Westmoreland County", 
+#                            "Beaver County", "Armstrong County")) %>% 
+#  mutate(fips = str_c(state_fips, county_fips))
+
+pa_fips <- counties %>% 
+  filter(state == "PA",
+         county_name == "Allegheny County") %>% 
+  mutate(fips = str_c(state_fips, county_fips))
+
+zip_codes <- zip_codes %>% 
+  mutate(fips = as.character(fips))
+
+pa_zipcodes <- zip_codes %>% 
+  semi_join(pa_fips)
+
+allegheny_zips <- pa_zipcodes %>% 
+  select(zip)
+
+df <- df %>% 
+  semi_join(allegheny_zips, by = c("incident_zip" = "zip"))
+```
+
 ```
 Opiate addiction and overdose have become a major problem in American society. The life expectancy in the U.S. has been decreasing for the past 2 years, and deaths from drug overdoses has risen rapidly. Communities have been flooded with prescription painkillers with deadly effects.
 
@@ -74,8 +103,8 @@ df %>%
   geom_hline(yintercept = 0) +
   geom_line(size = 2) +
   scale_y_continuous(label=comma) +
-  labs(title = "Fatal overdoses in Allegheny County",
-       y = "Cumulative sum of Fatal overdoses",
+  labs(title = "Cumulative Sum of Fatal Overdoses",
+       y = NULL,
        x = NULL)
 ```
 
@@ -96,7 +125,7 @@ ggplot(data = df_year_cumsum, aes(x = yday, y = n_cumsum, color = as.factor(year
   geom_line(size = 1.5) +
   geom_label_repel(data = df_year_tag, 
                    aes(x = last_yday, y = total, label = year, color = as.factor(year), group = year),
-                   direction = "x", nudge_x = 1) +
+                   direction = "y", nudge_x = 1) +
   geom_point(data = df_year_tag, 
              aes(x = last_yday, y = total, color = as.factor(year), group = as.factor(year)), size = 3) +
   scale_size_continuous(guide = FALSE) +
@@ -128,7 +157,7 @@ df_tile %>%
   ggplot(aes(mday, month, fill = n)) +
   geom_tile() +
   facet_wrap(~year, ncol = 1) +
-  scale_fill_viridis("Number of fatal overdoses") +
+  scale_fill_viridis("Number of fatal overdoses", option = "magma") +
   coord_equal() +
   scale_x_continuous(expand = c(0,0)) +
   scale_y_discrete(expand = c(0,0),
@@ -205,12 +234,13 @@ df_factors_fentanyl <- df_factors %>%
 df_factors_fentanyl %>% 
   ggplot(aes(date, percent_fentanyl)) +
   geom_point(alpha = .05) +
-  geom_smooth(method = "glm", method.args = list(family = "binomial")) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"),
+              color = "#EE3134") +
   scale_y_continuous(labels = scales::percent) +
   labs(title = "Fatal overdoses involving fentanyl",
        x = "",
        y = "% involving fentantyl",
-       caption = "Blue line indicates logistic regression")
+       caption = "Red line indicates logistic regression")
 ```
 
 #Demographics
@@ -228,13 +258,13 @@ df_demo %>%
   count(sex, ethnicity, sort = TRUE) %>% 
   mutate(ethnicity = fct_reorder(ethnicity, n)) %>% 
   ggplot(aes(ethnicity, n)) +
-  geom_col(fill = "#EE3134") +
-  coord_flip() +
-  facet_wrap(~sex) +
-  scale_y_continuous(label = comma) +
-  labs(x = NULL,
-       y = "Number of overdoses") +
-  theme(panel.grid.minor = element_blank())
+    geom_col(fill = "#EE3134") +
+    coord_flip() +
+    facet_wrap(~sex) +
+    scale_y_continuous(label = comma) +
+    labs(x = NULL,
+         y = "Number of overdoses") +
+    theme(panel.grid.minor = element_blank())
 ```
 
 The differences in overdose rates across ethnicity and age show that policymakers will need to use different intervention techniques for different populations.
@@ -347,7 +377,7 @@ df_geo_zip %>%
                                    estimate > 400 ~ od_per_capita)) %>% 
   ggplot() +
   geom_sf(aes(fill = od_per_capita), color = NA) +
-  geom_sf(data = df_geo_county, color = "white", size = .5, linetype = 2, alpha = 0) +
+  #geom_sf(data = df_geo_county, color = "white", size = .5, linetype = 2, alpha = 0) +
   scale_fill_viridis_c("Overdoses per 1,000 population", option = "B") +
   scale_alpha_continuous(range = c(.5, 1)) +
   coord_sf(xlim = c(-79.6, -80.4), ylim = c(40.2, 40.7)) +
@@ -359,15 +389,19 @@ df_geo_zip %>%
         #panel.background = element_rect(color = "black"),
         legend.position="bottom",
         legend.direction = "horizontal",
-        axis.text = element_blank())
+        axis.text = element_blank(),
+        panel.grid.minor = element_blank())
 ```
 Small communities can be devastated, but larger population centers are also damaged by the epidemic.
 
 ```{r}
 df_geo_zip %>%
+  filter(estimate > 0) %>% 
   ggplot(aes(estimate, od_per_capita)) +
   geom_point(alpha = .5) +
-  scale_y_continuous(limits = c(0, 15)) +
+  geom_smooth(method = "lm",
+              color = "#EE3134") +
+  scale_y_continuous(limits = c(0, 20)) +
   scale_x_continuous(label = comma) +
   labs(x = "Population",
        y = "Overdose per 1,000 population")
