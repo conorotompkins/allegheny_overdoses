@@ -75,7 +75,7 @@ df %>%
   geom_line(size = 2) +
   scale_y_continuous(label=comma) +
   labs(title = "Fatal overdoses in Allegheny County",
-       y = "Cumulative sum of fatal overdoses",
+       y = "Cumulative sum of Fatal overdoses",
        x = NULL)
 ```
 
@@ -134,7 +134,7 @@ df_tile %>%
   scale_y_discrete(expand = c(0,0),
                    limits = rev(levels(df$month)),
                    breaks = c("Jan", "Apr", "Jul", "Oct")) +
-  labs(title = "Fatal overdoses in Allegheny County",
+  labs(title = "Fatal overdoses by year-month-day",
        y = NULL,
        x = "Day of the month") +
   theme(panel.grid = element_blank(),
@@ -188,10 +188,10 @@ ggplot(data = df_factors_cumsum, aes(x = date, y = od_cumsum, color = od_factor)
              aes(x = last_date, y = total, group = od_factor, color = od_factor), size = 3) +
   scale_color_discrete(guide = FALSE) +
   scale_y_continuous(expand = c(.01, .1), label = comma) +
-  labs(title = "Fatal overdoses by drug factor",
+  labs(title = "Drugs involved in fatal overdoses",
        y = "Cumulative sum of fatal overdoses",
-       x = "",
-       caption = "Drug overdoses not exclusive")
+       x = NULL,
+       caption = "Drugs involved are not exclusive")
 ```
 Fentanyl exploded onto the scene, and is now involved in over half of all overdoses.
 
@@ -228,7 +228,7 @@ df_demo %>%
   count(sex, ethnicity, sort = TRUE) %>% 
   mutate(ethnicity = fct_reorder(ethnicity, n)) %>% 
   ggplot(aes(ethnicity, n)) +
-  geom_col() +
+  geom_col(fill = "#EE3134") +
   coord_flip() +
   facet_wrap(~sex) +
   scale_y_continuous(label = comma) +
@@ -248,8 +248,9 @@ df_demo %>%
        x = "Age",
        y = NULL) +
     scale_fill_viridis_d("") +
-    scale_y_continuous(expand = c(0,0))
-    theme(axis.text.y = element_blank())
+    scale_y_continuous(expand = c(0,0)) +
+    theme(axis.text.y = element_blank(),
+          axis.ticks.y = element_blank())
 ```
 
 Men and women share largely similar age profiles.
@@ -263,7 +264,8 @@ df_demo %>%
        y = NULL) +
   scale_fill_viridis_d("") +
   scale_y_continuous(expand = c(0,0)) +
-  theme(axis.text.y = element_blank())
+  theme(axis.text.y = element_blank(),
+          axis.ticks.y = element_blank())
 ```
 
 #Geographic
@@ -287,11 +289,16 @@ df_zip <- df %>%
 data(zip_codes)
 data("counties")
 
+#pa_fips <- counties %>% 
+#  filter(state == "PA",
+#         county_name %in% c("Allegheny County", "Washington County", 
+#                            "Butler County", "Westmoreland County", 
+#                            "Beaver County", "Armstrong County")) %>% 
+#  mutate(fips = str_c(state_fips, county_fips))
+
 pa_fips <- counties %>% 
   filter(state == "PA",
-         county_name %in% c("Allegheny County", "Washington County", 
-                            "Butler County", "Westmoreland County", 
-                            "Beaver County", "Armstrong County")) %>% 
+         county_name == "Allegheny County") %>% 
   mutate(fips = str_c(state_fips, county_fips))
 
 zip_codes <- zip_codes %>% 
@@ -361,6 +368,7 @@ df_geo_zip %>%
   ggplot(aes(estimate, od_per_capita)) +
   geom_point(alpha = .5) +
   scale_y_continuous(limits = c(0, 15)) +
+  scale_x_continuous(label = comma) +
   labs(x = "Population",
        y = "Overdose per 1,000 population")
 ```
