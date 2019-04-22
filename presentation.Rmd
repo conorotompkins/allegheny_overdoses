@@ -443,7 +443,8 @@ df_geo_zip %>%
   scale_y_continuous(limits = c(0, 20)) +
   scale_x_continuous(label = comma) +
   labs(x = "Population",
-       y = "Overdose per 1,000 population")
+       y = "Overdose per 1,000 population",
+       caption = "Red line indicates linear regression")
 ```
 
 #Recommendations
