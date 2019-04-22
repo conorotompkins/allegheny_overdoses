@@ -76,7 +76,6 @@ df <- df %>%
   semi_join(allegheny_zips, by = c("incident_zip" = "zip"))
 ```
 
-```
 Opiate addiction and overdose have become a major problem in American society. The life expectancy in the U.S. has been decreasing for the past 2 years, and deaths from drug overdoses has risen rapidly. Communities have been flooded with prescription painkillers with deadly effects.
 
 Pennsylvania and the Pittsburgh area have also suffered from drug overdoses. 38 out of every 100,000 Pennsylvanians died from a drug overdose in 2017.
@@ -110,7 +109,7 @@ df %>%
 
 The years 2016-2018 are clearly of a different class compared to the previous years. 2019 appears to have many fewer overdoses, but it is too early to make a good prediction.
 
-```{r}
+```{r fig.height=6, fig.width=9}
 df %>% 
   group_by(year, yday) %>% 
   summarize(n = n()) %>% 
@@ -123,14 +122,16 @@ df %>%
 
 ggplot(data = df_year_cumsum, aes(x = yday, y = n_cumsum, color = as.factor(year))) +
   geom_line(size = 1.5) +
-  geom_label_repel(data = df_year_tag, 
-                   aes(x = last_yday, y = total, label = year, color = as.factor(year), group = year),
-                   direction = "y", nudge_x = 1) +
   geom_point(data = df_year_tag, 
              aes(x = last_yday, y = total, color = as.factor(year), group = as.factor(year)), size = 3) +
+  geom_label_repel(data = df_year_tag, 
+                   aes(x = last_yday, y = total, label = year, color = as.factor(year), group = year),
+                   nudge_x = 25, max.iter = 1000) +
   scale_size_continuous(guide = FALSE) +
   scale_color_discrete(guide = FALSE) +
   scale_y_continuous(label = comma) +
+  scale_x_continuous(limits = c(0, 400),
+                     breaks = c(0, 100, 200, 300)) +
   labs(title = "Fatal overdoses by year",
        x = "Day of the year",
        y = "Cumulative sum of fatal overdoses")
@@ -173,7 +174,7 @@ df_tile %>%
 #Drug factor
 There was an overall increase in the number of overdoses across the top-10 drugs post-2016. However, heroin and fentanyl appear to be the major drivers. Cocaine was previoulsy the most common drug involved in overdoses, but it was surpassed by heroin in 2012. In turn, heroin was surpassed by fentanyl in 2016. This reflects significant changes in the drugs that are sold on the street.
 
-```{r}
+```{r fig.height=6, fig.width=9}
 df_factors <- df %>% 
   mutate(od_fentanyl = str_detect(od_factors, "FENTAN"),
          od_heroin = str_detect(od_factors, "HEROIN"),
@@ -210,13 +211,15 @@ df_factors_cumsum_label <- df_factors_long %>%
 #plot cumulative od_factor
 ggplot(data = df_factors_cumsum, aes(x = date, y = od_cumsum, color = od_factor)) +
   geom_line(size = 1.5) +
-  geom_label_repel(data = df_factors_cumsum_label, 
-                   aes(x = last_date, y = total, label = od_factor, group = od_factor),
-                   direction = "x", hjust = 1) +
   geom_point(data = df_factors_cumsum_label, 
              aes(x = last_date, y = total, group = od_factor, color = od_factor), size = 3) +
+  geom_label_repel(data = df_factors_cumsum_label, 
+                   aes(x = last_date, y = total, label = od_factor, group = od_factor), nudge_x = 2000, max.iter = 1000) +
   scale_color_discrete(guide = FALSE) +
-  scale_y_continuous(expand = c(.01, .1), label = comma) +
+  scale_y_continuous(limits = c(0, 2750), label = comma) +
+  scale_x_date(limits = c(first(df_factors_cumsum$date), last(df_factors_cumsum$date) + 500),
+               date_breaks = "3 years",
+               date_labels = "%Y") +
   labs(title = "Drugs involved in fatal overdoses",
        y = "Cumulative sum of fatal overdoses",
        x = NULL,
@@ -251,6 +254,42 @@ df_demo <- df %>%
   na.omit()
 ```
 
+```{r}
+v17 <- load_variables(2017, "acs5", cache = TRUE)
+
+vars_ethncity <- v17 %>% 
+  filter(concept == "RACE") %>% 
+  head(3) %>% 
+  pull(name)
+
+df_ethnicity <- get_acs(geography = "county",
+        year = 2017,
+        state = "Pennsylvania",
+        county = "Allegheny County",
+        variables = vars_ethncity) %>% 
+  mutate(ethnicity = c("total", "white", "black")) %>% 
+  select(-variable)
+
+vars_sex <- v17 %>% 
+  filter(str_detect(concept, "SEX"))
+
+df_sex <- tibble(sex = c("Male", "Female"),
+                 pop = c((1-.517) * 1229605, .517 * 1229605))
+df_sex
+
+
+df_demo %>% 
+  count(sex, sort = TRUE) %>% 
+  left_join(df_sex) %>% 
+  mutate(od_per_capita = n / pop * 1000) %>% 
+  ggplot(aes(sex, od_per_capita, fill = sex)) +
+    geom_col() +
+    labs(x = NULL,
+         y = "Overdoses per 1,000 population") +
+    scale_fill_manual(NULL, values = c("dark grey", "#EE3134")) +
+  guides(fill = FALSE)
+```
+
 White men are the population that suffers the most from drug overdoses.
 
 ```{r}
@@ -277,7 +316,7 @@ df_demo %>%
     labs(title = "Overdose age profile by ethnicity",
        x = "Age",
        y = NULL) +
-    scale_fill_viridis_d("") +
+    scale_fill_manual(NULL, values = c("grey", "#EE3134")) +
     scale_y_continuous(expand = c(0,0)) +
     theme(axis.text.y = element_blank(),
           axis.ticks.y = element_blank())
@@ -292,7 +331,7 @@ df_demo %>%
   labs(title = "Overdose age profile by sex",
        x = "Age",
        y = NULL) +
-  scale_fill_viridis_d("") +
+  scale_fill_manual(NULL, values = c("grey", "#EE3134")) +
   scale_y_continuous(expand = c(0,0)) +
   theme(axis.text.y = element_blank(),
           axis.ticks.y = element_blank())
