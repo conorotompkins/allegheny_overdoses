@@ -32,7 +32,7 @@ my_census_key <- "a16f3636406d2b544871e2ae49bb318c3ddcacba"
 census_api_key(my_census_key)
 
 #use a customized version of theme_bw()
-theme_set(theme_bw(base_size = 18))
+theme_set(theme_bw(base_size = 14))
 ```
 
 #Identifying Trends in Overdoses in Allegheny County
@@ -113,7 +113,7 @@ The overdoses do not occur in steady waves. They occur in spikes, which could be
 df_dates <- tibble(date = seq(first(df$date), last(df$date), by = "day"))
 
 #create tile df
-df %>% 
+df_tile <- df %>%
   mutate(n = 1) %>% 
   right_join(df_dates) %>% 
   mutate(year = year(date),
@@ -121,12 +121,13 @@ df %>%
          mday = mday(date)) %>% 
   group_by(year, month, mday) %>% 
   summarize(n = sum(n)) %>% 
-  replace_na(list(n = 0)) -> df_tile
+  replace_na(list(n = 0))
 
 df_tile %>% 
+  filter(year >= 2016, year < 2019) %>% 
   ggplot(aes(mday, month, fill = n)) +
   geom_tile() +
-  facet_wrap(~year, ncol = 2) +
+  facet_wrap(~year, ncol = 1) +
   scale_fill_viridis("Number of fatal overdoses") +
   coord_equal() +
   scale_x_continuous(expand = c(0,0)) +
@@ -359,7 +360,6 @@ Small communities can be devastated, but larger population centers are also dama
 df_geo_zip %>%
   ggplot(aes(estimate, od_per_capita)) +
   geom_point(alpha = .5) +
-  geom_smooth() +
   scale_y_continuous(limits = c(0, 15)) +
   labs(x = "Population",
        y = "Overdose per 1,000 population")
