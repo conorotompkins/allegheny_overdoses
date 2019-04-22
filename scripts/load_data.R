@@ -3,7 +3,10 @@ library(janitor)
 library(lubridate)
 
 url <- "https://data.wprdc.org/datastore/dump/1c59b26a-1684-4bfb-92f7-205b947530cf"
-data <- read_csv(url, progress = FALSE)
+data <- read_csv(url, col_types = cols(.default = "c"), progress = FALSE) %>% 
+  mutate(death_date_and_time = ymd_hms(death_date_and_time),
+         age = as.integer(age),
+         case_year = as.integer(case_year))
 
 glimpse(data)
 
