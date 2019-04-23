@@ -254,7 +254,7 @@ df_demo <- df %>%
   na.omit()
 ```
 
-```{r}
+```{r fig.height=4, fig.width=4}
 v17 <- load_variables(2017, "acs5", cache = TRUE)
 
 vars_ethncity <- v17 %>% 
@@ -267,8 +267,9 @@ df_ethnicity <- get_acs(geography = "county",
         state = "Pennsylvania",
         county = "Allegheny County",
         variables = vars_ethncity) %>% 
-  mutate(ethnicity = c("total", "white", "black")) %>% 
-  select(-variable)
+  mutate(ethnicity = c("Total", "White", "Black")) %>% 
+  filter(ethnicity != "Total") %>% 
+  select(ethnicity, estimate)
 
 vars_sex <- v17 %>% 
   filter(str_detect(concept, "SEX"))
@@ -287,6 +288,18 @@ df_demo %>%
     labs(x = NULL,
          y = "Overdoses per 1,000 population") +
     scale_fill_manual(NULL, values = c("dark grey", "#EE3134")) +
+  guides(fill = FALSE)
+
+df_demo %>% 
+  filter(ethnicity %in% c("White", "Black")) %>% 
+  count(ethnicity, sort = TRUE) %>% 
+  left_join(df_ethnicity) %>% 
+  mutate(od_per_capita = n / estimate * 1000) %>% 
+  ggplot(aes(ethnicity, od_per_capita, fill = ethnicity)) +
+    geom_col() +
+    labs(x = NULL,
+         y = NULL) +
+    scale_fill_manual(NULL, values = c("grey", "#EE3134")) +
   guides(fill = FALSE)
 ```
 
